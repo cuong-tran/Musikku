@@ -1305,6 +1305,7 @@ class SharedViewModel(
             _isOfficialBuild.value = false
             return
         }
+        /*
         viewModelScope.launch {
             updateRepository.getFdroidSigningKeys().collect { response ->
                 val keys = response.data
@@ -1314,6 +1315,7 @@ class SharedViewModel(
                 }
             }
         }
+        */
     }
 
     fun stopPlayer() {
