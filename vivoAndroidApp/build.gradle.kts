@@ -168,8 +168,8 @@ dependencies {
 
 // Only the Full build is shipped for vivo, so androidApp's FOSS-only Sentry meta cleanup is not repeated.
 sentry {
-    org.set("simpmusic")
-    projectName.set("android")
+    org.set("komikku")
+    projectName.set("musikku")
     ignoredBuildTypes.set(setOf("debug"))
     autoInstallation.enabled = false
     if (isFullBuild) {
