@@ -82,8 +82,49 @@ jobs:
         env:
             BUILD_TOOLS_VERSION: ${{ env.BUILD_TOOL_VERSION }}
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      # One file per ABI, so each can be downloaded on its own instead of
+      # unpacking a zip holding all four.
+      - name: Name APKs
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          version=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          mkdir -p dist
+          for abi in arm64-v8a armeabi-v7a x86_64 universal; do
+            src=(androidApp/build/outputs/apk/release/*-"$abi"-release*-signed.apk)
+            if [ "${#src[@]}" -ne 1 ]; then
+              echo "::error::Expected one signed $abi APK, found ${#src[@]}"
+              exit 1
+            fi
+            cp "${src[0]}" "dist/Musikku-${version}-nightly-${GITHUB_SHA::7}-full-${abi}.apk"
+          done
+          ls -lh dist/
+
+      # archive: false uploads the file as-is; the artifact takes the file's name.
+      - name: Upload APK (arm64-v8a)
+        uses: actions/upload-artifact@v7
         with:
-          name: app
-          path: androidApp/build/outputs/apk/release/*-signed.apk
+          path: dist/*-arm64-v8a.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload APK (armeabi-v7a)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-armeabi-v7a.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload APK (x86_64)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-x86_64.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload APK (universal)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-universal.apk
+          archive: false
+          if-no-files-found: error
