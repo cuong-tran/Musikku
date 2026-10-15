@@ -31,6 +31,8 @@ import com.maxrave.common.AppIdentity
 import com.maxrave.common.DESKTOP_APP_ID
 import com.maxrave.common.DESKTOP_DATA_DIR
 import com.maxrave.data.di.loader.loadAllModules
+import com.maxrave.data.io.LegacyImportResult
+import com.maxrave.data.io.importLegacyDesktopData
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.ToastType
@@ -89,7 +91,10 @@ import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
 import java.io.File
 import java.security.MessageDigest
+import javax.swing.JOptionPane
+import javax.swing.SwingUtilities
 import javax.swing.Timer
+import kotlin.system.exitProcess
 
 private const val SENTRY_APP_OPEN = "app.open"
 
@@ -189,13 +194,22 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
         deepLinkArg?.let { DesktopDeepLinkHandler.writePendingUri(it) }
         return
     }
-    // Past the guard on purpose: a second instance must not open the same log files.
-    Logger.enableFileLogging(getHomeFolderPath(listOf(DESKTOP_DATA_DIR, "logs")))
 
     // First instance only: deliver our own deep link (non-macOS passes URI via args).
     if (!isMacOS) {
         deepLinkArg?.let { DesktopDeepLinkHandler.onNewUri(it) }
     }
+
+    // First launch only: bring upstream SimpMusic's library over. Before Koin, whose
+    // DataStore would otherwise create an empty ~/.musikku first — so if the import fails,
+    // starting Koin gives up on it for good, and quitting keeps it for the next launch.
+    // The user makes that call, not us.
+    if (!confirmLaunchAfterImport(importLegacyDesktopData())) exitProcess(0)
+
+    // Past the single-instance guard, so a second instance never opens the same log files, and
+    // past the import: creating ~/.musikku/logs any earlier makes the import find ~/.musikku and
+    // skip itself for good.
+    Logger.enableFileLogging(getHomeFolderPath(listOf(DESKTOP_DATA_DIR, "logs")))
 
     // Initialize Koin ONCE before application starts
     startKoin {
@@ -538,6 +552,57 @@ private object DesktopRestoreSignal {
     fun request() {
         _requests.tryEmit(Unit)
     }
+}
+
+/**
+ * Asks whether to start with an empty library when SimpMusic's could not be imported; true
+ * means launch. Plain Swing and English: this runs before Koin and Compose, so neither the
+ * theme nor the string resources exist yet.
+ */
+private fun confirmLaunchAfterImport(result: LegacyImportResult): Boolean {
+    val reason =
+        when (result) {
+            LegacyImportResult.Imported, LegacyImportResult.Skipped -> return true
+            is LegacyImportResult.NewerSchema ->
+                "It was saved by a newer SimpMusic (database version ${result.found}) " +
+                    "than this Musikku can read (version ${result.supported}). " +
+                    "Update Musikku, then open it again."
+            is LegacyImportResult.Failed -> result.cause.message ?: result.cause.toString()
+        }
+    val options = arrayOf("Quit", "Start with an empty library")
+    var chosen: Any? = null
+    // Swing is not thread-safe and this runs on the main thread, so the dialog is built and shown
+    // on the EDT. invokeAndWait returns once the modal dialog closes, which is what holds Koin
+    // back until the user has chosen.
+    SwingUtilities.invokeAndWait {
+        // No window exists yet, so nothing has brought the app forward, and the dialog could open
+        // behind other apps; the launch would then look like a hang. Ask to come forward, and keep
+        // the dialog on top for platforms that refuse (Windows limits focus stealing).
+        if (java.awt.Desktop.isDesktopSupported()) {
+            val desktop = java.awt.Desktop.getDesktop()
+            if (desktop.isSupported(java.awt.Desktop.Action.APP_REQUEST_FOREGROUND)) {
+                desktop.requestForeground(true)
+            }
+        }
+        val pane =
+            JOptionPane(
+                "Musikku could not import your SimpMusic library.\n\n$reason\n\n" +
+                    "Quit to try again the next time Musikku opens. If you start with an empty " +
+                    "library instead, the import will not be offered again.",
+                JOptionPane.WARNING_MESSAGE,
+                JOptionPane.DEFAULT_OPTION,
+                null,
+                options,
+                options[0],
+            )
+        val dialog = pane.createDialog(null, "Musikku")
+        dialog.isAlwaysOnTop = true
+        dialog.isVisible = true // modal: blocks until closed
+        dialog.dispose()
+        chosen = pane.value
+    }
+    // Closing the dialog leaves no choice, which counts as Quit.
+    return chosen == options[1]
 }
 
 /**
