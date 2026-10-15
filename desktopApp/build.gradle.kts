@@ -130,7 +130,10 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
             """
             |app.fsname = simpmusic
             |app.display-name = Musikku
-            |app.rdns-name = com.maxrave.simpmusic
+            |// Musikku's own bundle id, not upstream's com.maxrave.simpmusic: macOS treats
+            |// two apps with one bundle id as the same app, so they could not be installed
+            |// or run side by side. Must match DESKTOP_APP_ID in core/common Config.kt.
+            |app.rdns-name = app.musikku
             |
             |// Override the Gradle-detected classpath with the ProGuard'd
             |// jar directory. Conveyor expands a directory entry to every
@@ -176,6 +179,7 @@ compose.desktop {
                             .withZone(ZoneId.of("UTC"))
                             .format(it)
                     }
+                bundleID = "app.musikku"
                 includeAllModules = true
                 packageVersion = formatedDate
                 iconFile.set(rootDir.resolve("composeApp/icon/circle_app_icon.icns"))
@@ -195,7 +199,7 @@ compose.desktop {
                             <key>CFBundleTypeRole</key>
                             <string>Viewer</string>
                             <key>CFBundleURLName</key>
-                            <string>com.maxrave.simpmusic.deeplink</string>
+                            <string>app.musikku.deeplink</string>
                             <key>CFBundleURLSchemes</key>
                             <array>
                                 <string>simpmusic</string>

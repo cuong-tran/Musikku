@@ -2,6 +2,7 @@ package com.maxrave.simpmusic.expect.ui
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import com.maxrave.common.DESKTOP_DATA_DIR
 import com.maxrave.logger.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +24,7 @@ actual suspend fun persistPickedImage(
     withContext(Dispatchers.IO) {
         runCatching {
             // Same place the rest of the desktop app keeps its data.
-            val dir = File(System.getProperty("user.home"), ".simpmusic/$COVER_DIR").apply { mkdirs() }
+            val dir = File(System.getProperty("user.home"), "$DESKTOP_DATA_DIR/$COVER_DIR").apply { mkdirs() }
             val file = File(dir, fileName)
             file.writeBytes(bytes)
             file.toURI().toString()
