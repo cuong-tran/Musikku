@@ -30,6 +30,8 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.maxrave.common.AppIdentity
+import com.maxrave.common.DESKTOP_APP_ID
+import com.maxrave.common.DESKTOP_DATA_DIR
 import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
@@ -181,12 +183,18 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
             .firstOrNull { DEEP_LINK_ARG.matches(it) }
     // Single-instance guard — MUST run before startKoin. The DataStore Koin
     // singleton is `createdAtStart`, so a second Windows instance would touch
-    // ~/.simpmusic/settings.preferences_pb and crash with an "Unable to rename
+    // ~/.musikku/settings.preferences_pb and crash with an "Unable to rename
     // ...tmp" IOException (#2044) before it ever reached the old in-Compose check.
     // Bail out here, before Koin/DataStore initialize.
     //
     // A second instance forwards its deep link inside the restore request itself: the library
     // writes it before the request appears, so the running instance never looks too early (#2894).
+    //
+    // The lock is named after `nucleus.app.id` when set, and after the main class
+    // otherwise — which Musikku shares with upstream SimpMusic, so a running SimpMusic
+    // held Musikku's lock and every launch exited as a "second instance". Must be set
+    // before SingleInstanceManager is first touched: it reads the id once, at init.
+    System.setProperty("nucleus.app.id", DESKTOP_APP_ID)
     val isSingleInstance =
         SingleInstanceManager.isSingleInstance(
             onRestoreFileCreated = { deepLinkArg?.let { DesktopDeepLinkHandler.writePendingUri(this, it) } },
@@ -200,7 +208,7 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
         return
     }
     // Past the guard on purpose: a second instance must not open the same log files.
-    Logger.enableFileLogging(getHomeFolderPath(listOf(".simpmusic", "logs")))
+    Logger.enableFileLogging(getHomeFolderPath(listOf(DESKTOP_DATA_DIR, "logs")))
 
     // First instance only: deliver our own deep link (non-macOS passes URI via args).
     if (!isMacOS) {
@@ -214,7 +222,7 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
     startKoin {
         loadAllModules(
             AppIdentity(
-                applicationId = "com.maxrave.simpmusic",
+                applicationId = DESKTOP_APP_ID,
                 versionName = BuildKonfig.versionName,
                 platform = "${System.getProperty("os.name")} ${System.getProperty("os.version")}",
                 // Set by desktopApp's JavaExec tasks (run, hotRunJvm); a packaged install never has it.
