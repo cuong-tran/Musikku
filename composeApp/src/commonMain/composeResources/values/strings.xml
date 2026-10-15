@@ -971,7 +971,7 @@
     <string name="library_sync_desktop_instructions">On your phone, open Musikku → Settings → Library sync, then scan this code.</string>
     <string name="library_sync_windows_public">Windows is blocking your phones. This network is set to Public, so Windows refuses connections from other devices. Set it to Private.</string>
     <string name="library_sync_open_network_settings">Open network settings</string>
-    <string name="library_sync_port_in_use">Another app is using port 48517. Close it and try again.</string>
+    <string name="library_sync_port_in_use">Another app is using port 48518. Close it and try again.</string>
     <string name="library_sync_failed">Something went wrong: %1$s</string>
     <string name="library_sync_paired_with">Paired with %1$s.</string>
     <string name="library_sync_first_sync_desktop">The first sync is running on your phone. Keep Musikku open on both devices until it finishes.</string>
