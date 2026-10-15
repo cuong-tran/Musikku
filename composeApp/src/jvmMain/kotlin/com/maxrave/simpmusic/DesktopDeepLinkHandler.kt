@@ -25,7 +25,8 @@ object DesktopDeepLinkHandler {
     private const val TAG = "DesktopDeepLinkHandler"
 
     private val pendingUriFile: File by lazy {
-        File(System.getProperty("java.io.tmpdir"), "simpmusic_pending_deeplink.txt")
+        // Not "simpmusic_…": upstream SimpMusic polls that name, and would pick up our links.
+        File(System.getProperty("java.io.tmpdir"), "musikku_pending_deeplink.txt")
     }
 
     private var cached: String? = null
