@@ -28,6 +28,7 @@ import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.maxrave.common.AppIdentity
 import com.maxrave.common.DESKTOP_APP_ID
+import com.maxrave.common.DESKTOP_DATA_DIR
 import com.maxrave.data.di.loader.loadAllModules
 import com.maxrave.data.io.LegacyImportResult
 import com.maxrave.data.io.importLegacyDesktopData
@@ -198,8 +199,6 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
         deepLinkArg?.let { DesktopDeepLinkHandler.writePendingUri(it) }
         return
     }
-    // Past the guard on purpose: a second instance must not open the same log files.
-    Logger.enableFileLogging(getHomeFolderPath(listOf(".simpmusic", "logs")))
 
     // First instance only: deliver our own deep link (non-macOS passes URI via args).
     if (!isMacOS) {
@@ -211,6 +210,11 @@ fun runDesktopApp(args: Array<String> = emptyArray()) {
     // starting Koin gives up on it for good, and quitting keeps it for the next launch.
     // The user makes that call, not us.
     if (!confirmLaunchAfterImport(importLegacyDesktopData())) exitProcess(0)
+
+    // Past the single-instance guard, so a second instance never opens the same log files, and
+    // past the import: creating ~/.musikku/logs any earlier makes the import find ~/.musikku and
+    // skip itself for good.
+    Logger.enableFileLogging(getHomeFolderPath(listOf(DESKTOP_DATA_DIR, "logs")))
 
     // Initialize Koin ONCE before application starts
     startKoin {
