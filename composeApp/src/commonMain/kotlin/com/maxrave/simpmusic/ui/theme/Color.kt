@@ -5,10 +5,14 @@ import androidx.compose.ui.graphics.Color
 // ===== Brand =====
 
 /**
- * Brand seed color. The whole Material 3 ColorScheme is generated from this
- * color at runtime — see [AppTheme].
+ * Brand seed color — the face of the maple leaf in the app icon. The whole Material 3
+ * ColorScheme is generated from this color at runtime — see [AppTheme].
+ *
+ * The generated scheme does not reproduce it: TonalSpot keeps only the hue, so the dark-theme
+ * primary comes out as a pale salmon (tone 80) and the light-theme one as a muted brick (tone 40).
+ * The leaf red itself only appears where `seed` is drawn raw.
  */
-val seed = Color(0xFF8ECAE6)
+val seed = Color(0xFFD13433)
 
 // ===== Semantic colors (not derivable from the color scheme) =====
 

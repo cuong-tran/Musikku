@@ -2961,7 +2961,9 @@ fun SettingScreen(
         // The primary colour of each music app, as its brand publishes it. Names are brand names and
         // are not translated.
         val presetColors =
+            // Musikku's own leaf red first, so the default stays one tap away.
             listOf(
+                "FFD13433" to "Musikku",
                 "FF1ED760" to "Spotify",
                 "FFFF5500" to "SoundCloud",
                 "FFFA243C" to "Apple Music",
@@ -2979,7 +2981,8 @@ fun SettingScreen(
             text = {
                 Column {
                     // Four across: at five, a cell is too narrow for "SoundCloud" under its swatch.
-                    presetColors.chunked(4).forEach { rowColors ->
+                    // Three in Musikku, whose own red makes nine: three full rows.
+                    presetColors.chunked(3).forEach { rowColors ->
                         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                             rowColors.forEach { (hex, name) ->
                                 val color = parseThemeColorHex(hex) ?: Color.Gray
