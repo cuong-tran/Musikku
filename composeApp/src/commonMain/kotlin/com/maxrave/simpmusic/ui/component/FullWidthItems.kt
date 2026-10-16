@@ -252,7 +252,7 @@ fun SongFullWidthItems(
                                 Icon(
                                     imageVector = SimpIcons.Check,
                                     contentDescription = null,
-                                    tint = Color.Black,
+                                    tint = Color.White,
                                     modifier = Modifier.size(14.dp),
                                 )
                             }

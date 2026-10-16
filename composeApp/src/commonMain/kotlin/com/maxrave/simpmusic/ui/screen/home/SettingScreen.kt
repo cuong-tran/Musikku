@@ -2864,12 +2864,14 @@ fun SettingScreen(
     }
     if (showColorPickerDialog) {
         val presetColors =
+            // The default (logo red) first, then the old light-blue default so it stays one tap away.
+            // #EF5350 made way for it: it sat too close to the logo red to be a separate choice.
             listOf(
+                "FFD13433",
                 "FF8ECAE6",
                 "FF4C82EF",
                 "FF9B72CF",
                 "FFEF6C9B",
-                "FFEF5350",
                 "FFF4A340",
                 "FFFFCA28",
                 "FF66BB6A",

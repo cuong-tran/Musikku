@@ -45,9 +45,9 @@ fun PlayerControlLayout(
     // The capsule already pads its own edges; stacking this 20dp on top of that
     // read as a hole at both ends of the transport cluster.
     horizontalPadding: Dp = 20.dp,
-    // Tint for the ACTIVE shuffle/repeat state. The default keeps the raw seed (#8ECAE6) every
-    // existing call site had; the capsule passes a theme-aware colour because pastel seed on a
-    // light glass surface is nearly invisible.
+    // Tint for the ACTIVE shuffle/repeat state. The default keeps the raw seed every existing call
+    // site had; the capsule passes a theme-aware colour so the tint follows the light/dark glass
+    // surface instead of staying fixed.
     activeColor: Color = seed,
     contentColor: Color = Color.White,
     onUIEvent: (UIEvent) -> Unit,
