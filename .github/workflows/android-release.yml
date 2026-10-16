@@ -170,11 +170,28 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./build_and_sign_apk.sh --release --full --vivo
 
+      # Named like the full release's APKs above. arm64-v8a only, so one file.
+      - name: Name APK
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          version=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          mkdir -p dist
+          src=(vivoAndroidApp/build/outputs/apk/release/*-release.apk)
+          if [ "${#src[@]}" -ne 1 ]; then
+            echo "::error::Expected one signed vivo APK, found ${#src[@]}"
+            exit 1
+          fi
+          cp "${src[0]}" "dist/Musikku-${version}-full-vivo-arm64-v8a.apk"
+          ls -lh dist/
+
+      # archive: false uploads the file as-is; the artifact takes the file's name.
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: app-vivo-release
-          path: vivoAndroidApp/build/outputs/apk/release/*.apk
+          path: dist/*.apk
+          archive: false
+          if-no-files-found: error
 
   build-foss-release:
     name: Build foss release version
