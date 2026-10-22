@@ -888,6 +888,8 @@ if (getPlatform() == Platform.Android) {
   - The value comes from `rememberVideoAspectRatio(playerName)` (expect/actual). Android reads Media3's `rememberPresentationState(player).videoSizeDp`. Desktop reads mpv's `video-params/aspect`, observed by `MpvPlayer` and published as `MpvVideoFrameSource.aspectRatio` — the frames cannot say it themselves, since mpv letterboxes them to the target size. Living on the frame source, it is re-pointed by `MpvPlayerAdapter.currentVideoFrames` on every handle swap for free.
   - **The Full build's session player only reports what changed.** There `MAIN_PLAYER` is a Media3 `CastPlayer` (`ForwardingSimpleBasePlayer` → `SimpleBasePlayer`): it re-reads the wrapped player on `onEvents` and fires a callback only for fields that differ from its last snapshot. A view composed mid-video — Now Playing reopened after fullscreen — therefore never hears `onVideoSizeChanged`, `onTracksChanged` or `onMediaItemTransition` for the current item. `MediaPlayerViewWithSubtitle` started at `videoRatio = 16f / 9` and waited for that event, so the video came back stretched to 16:9 ever since Cast wrapping landed (core `c310577`, 2026-07-10); FOSS passes events straight through and healed on the next frame. UI state derived from the session player must be read from the player's getters (or Media3's `rememberPresentationState`) before listening.
 
+- **Promotional pop-ups and blog notifications removed (2026-10-22)**: Home no longer shows the "Enjoying SimpMusic" star/ProductHunt/coffee dialog, the maxrave.dev blog promo or the kotlin-footguns star prompt — `ReviewDialog`, `BlogPromoDialog`, `FootgunsStarDialog` and `FOOTGUNS_STAR_KEY` are deleted, and the share-lyrics permission request is the only dialog left on the app-open milestones. On Android, `RssFeedNotifyWork` is deleted; `MainActivity` now cancels the `"Blog RSS Worker"` unique work a previous build may have scheduled and deletes the `blog_updates_channel` notification channel on every start. Settings → About loses "Follow me on X", "Developer Blog" and the blog-notification switch, and the Notifications screen filters out `NotificationEntity.TYPE_BLOG` rows already stored. `DataStoreManager.blogNotificationEnabled` (in the `core` submodule) is left in place but nothing reads it.
+
 ## 🔄 CLAUDE.md Auto-Update Rule (MANDATORY)
 
 After completing any of the following types of changes, the AI agent **MUST** update this CLAUDE.md file:
@@ -912,6 +914,6 @@ After completing any of the following types of changes, the AI agent **MUST** up
 
 *This document helps AI Agents quickly understand the SimpMusic project. Update regularly when there are major changes to architecture or structure.*
 
-**Last updated**: 2026-09-26
+**Last updated**: 2026-10-22
 **Project version**: Check latest release on GitHub
 **Maintained by**: maxrave-dev and contributors
