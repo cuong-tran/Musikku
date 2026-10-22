@@ -32,14 +32,13 @@ import com.maxrave.common.STATUS_DONE
 import com.maxrave.common.SUPPORTED_LANGUAGE
 import com.maxrave.common.SUPPORTED_LOCATION
 import com.maxrave.domain.data.model.intent.GenericIntent
-import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.mediaservice.handler.MediaPlayerHandler
 import com.maxrave.domain.mediaservice.handler.ToastType
 import com.maxrave.domain.repository.LibrarySyncPhoneRepository
 import com.maxrave.logger.Logger
 import com.maxrave.media3.di.setServiceActivitySession
 import com.maxrave.simpmusic.di.viewModelModule
-import com.maxrave.simpmusic.service.rss.RssFeedNotifyWork
+import com.maxrave.simpmusic.service.test.notification.NotificationHandler
 import com.maxrave.simpmusic.service.test.notification.NotifyWork
 import com.maxrave.simpmusic.utils.ComposeResUtils
 import com.maxrave.simpmusic.utils.VersionManager
@@ -62,7 +61,6 @@ private var lastLibrarySyncAt = 0L
 class MainActivity : AppCompatActivity() {
     val viewModel: SharedViewModel by inject()
     val mediaPlayerHandler by inject<MediaPlayerHandler>()
-    val dataStoreManager: DataStoreManager by inject()
     private val librarySync: LibrarySyncPhoneRepository by inject()
 
     private var mBound = false
@@ -222,30 +220,10 @@ class MainActivity : AppCompatActivity() {
             ExistingPeriodicWorkPolicy.KEEP,
             request,
         )
-        lifecycleScope.launch {
-            dataStoreManager.blogNotificationEnabled.collect { enabled ->
-                if (enabled == DataStoreManager.TRUE) {
-                    val rssRequest =
-                        PeriodicWorkRequestBuilder<RssFeedNotifyWork>(
-                            24L,
-                            TimeUnit.HOURS,
-                        ).addTag("Blog RSS Worker")
-                            .setConstraints(
-                                Constraints
-                                    .Builder()
-                                    .setRequiredNetworkType(NetworkType.CONNECTED)
-                                    .build(),
-                            ).build()
-                    WorkManager.getInstance(this@MainActivity).enqueueUniquePeriodicWork(
-                        "Blog RSS Worker",
-                        ExistingPeriodicWorkPolicy.KEEP,
-                        rssRequest,
-                    )
-                } else {
-                    WorkManager.getInstance(this@MainActivity).cancelUniqueWork("Blog RSS Worker")
-                }
-            }
-        }
+        // Blog post notifications are gone. Cancel the RSS worker a previous build may have
+        // scheduled, and drop its channel so it no longer shows in the system settings.
+        WorkManager.getInstance(this).cancelUniqueWork("Blog RSS Worker")
+        NotificationHandler.deleteBlogNotificationChannel(this)
 
         if (!EasyPermissions.hasPermissions(this, Manifest.permission.POST_NOTIFICATIONS)) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

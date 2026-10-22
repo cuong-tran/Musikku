@@ -18,10 +18,13 @@ class NotificationViewModel(
     init {
         viewModelScope.launch {
             commonRepository.getAllNotifications().collect { notificationEntities ->
+                // Blog-post entries left by the removed RSS worker are no longer shown.
                 _listNotification.value =
-                    notificationEntities?.sortedByDescending {
-                        it.time
-                    }
+                    notificationEntities
+                        ?.filter { it.type != NotificationEntity.TYPE_BLOG }
+                        ?.sortedByDescending {
+                            it.time
+                        }
             }
         }
     }

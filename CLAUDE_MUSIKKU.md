@@ -37,7 +37,7 @@ Update this after every merge, because these commits are the `OLD` side of the s
 
 ## 🧾 What the fork changes
 
-Seven groups. Each says what changed and why, what to look for in new upstream code (apply the same change there too), and which fork commits make it up. Commits marked `core:` are in the submodule; a superproject commit that "bumps core" brings them in.
+Eight groups. Each says what changed and why, what to look for in new upstream code (apply the same change there too), and which fork commits make it up. Commits marked `core:` are in the submodule; a superproject commit that "bumps core" brings them in.
 
 ### 1. Android identity and the official-build check
 
@@ -49,7 +49,7 @@ Seven groups. Each says what changed and why, what to look for in new upstream c
 
 ### 2. The app's name
 
-- Text that names the app says Musikku. Text that names upstream stays SimpMusic: the SimpMusic Lyrics and Charts services, the import file format, the credits, the review, blog and footguns prompts, and the unofficial-build notice.
+- Text that names the app says Musikku. Text that names upstream stays SimpMusic: the SimpMusic Lyrics and Charts services, the import file format, the credits and the unofficial-build notice. (The review, blog and footguns prompts named it too; group 8 removed them.)
 - This covers `app_name` (shared, plus the Android launcher label and `Musikku Dev` for debug) and about 20 string keys in every locale. Turkish, Azerbaijani, Finnish and Korean inflect the name, so those were fixed by hand. It also covers hardcoded text: the share cards, the listening receipt, saved-image and log-export file names, the notification channel name (its id stays, so users keep their settings; core renames the existing channel on start, since Media3 only names it when creating it), the auto-backup file names and folder, and the fastlane title and tagline. Changelogs are never rewritten.
 - **Watch for**: new strings or literals that name the app. Upstream manages translations on Crowdin and the fork edits them anyway, so every Crowdin sync can bring `SimpMusic` back.
 - **Commits**: `586a2a8`; core: `5263b99` (the notification channel).
@@ -95,6 +95,15 @@ Seven groups. Each says what changed and why, what to look for in new upstream c
 
 - `.gitmodules` points `core` at `cuong-tran/simpmusic_core` (branch `musikku`). A core change is committed there first, then the superproject bumps its pointer. `CLAUDE.md` is upstream's file plus one pointer line; everything else about Musikku lives in this file.
 - **Commits**: `3ca19bb` (the submodule), and the commit that adds this file and the `musikku-upstream-sync` skill, the last of the series.
+
+### 8. Upstream's promotional prompts and blog notifications
+
+- Home shows none of upstream's own prompts: `ReviewDialog` (star on GitHub, ProductHunt, buy me a coffee, follow on X), `BlogPromoDialog` and `FootgunsStarDialog` are deleted with `FOOTGUNS_STAR_KEY` and `BLOG_PROMO_KEY`. The share-lyrics permission request is the only dialog left on Home's app-open milestones, and the launch banner's `otherDialogOpen` no longer waits on the removed three.
+- Android posts no blog notifications: `RssFeedNotifyWork` is deleted, and `MainActivity` cancels the `"Blog RSS Worker"` unique work and deletes the `blog_updates_channel` channel on every start, for devices that had them from an earlier build. The Notifications screen hides the `TYPE_BLOG` rows already stored.
+- Settings → About drops "Follow me on X", "Developer Blog" and the blog-notification switch. `DataStoreManager.blogNotificationEnabled` (core) is left in place, unread. The unused strings stay, since translations come from Crowdin.
+- Group 5 is the data side of the same idea: the launch banners and the lyrics promo line are emptied in core, so their UI stays as upstream wrote it.
+- **Watch for**: a new dialog on Home's `openAppTime` milestones, a new worker or channel that pushes upstream's news, a new link to the developer's X account or blog in Settings, and new uses of `blogNotificationEnabled`.
+- **Commits**: the commit that adds this group.
 
 ### Kept as upstream
 
@@ -144,6 +153,7 @@ git commit                                         # once every conflict is reso
 | `MusicDatabase.kt` `@Database(version = …)` | Keep `version = MUSIC_DATABASE_VERSION` and set the constant to upstream's new number. |
 | `SharedViewModel.checkOfficialBuild` | Take upstream's logic, then comment out (or remove) the signing-key half again. Keep the package-name half. |
 | `CommonRepositoryImpl` promos write | Take upstream's surrounding changes, and keep writing `"[]"`. |
+| `HomeScreen` open-count milestones, the review/blog/footguns dialogs, `RssFeedNotifyWork`, the About rows in `SettingScreen` | Take upstream's other changes around them, and keep the prompts, the worker and the rows removed (group 8). |
 | Workflows, `build_and_sign_apk.sh` | Take upstream's new steps, then re-apply group 6: Musikku names, `BASE_64_SIGNING_KEY`, one artifact per file. |
 | `androidApp` / `vivoAndroidApp` `build.gradle.kts` | Take upstream's, and keep `applicationId = "app.musikku"` and the Sentry org and project. |
 | `desktopApp/build.gradle.kts`, `conveyor.conf` | Take upstream's, and keep display name, `rdns-name`, `bundleID`, `packageName`, AppImage `appName`, `CFBundleURLName` and `StartupWMClass` (group 4). |
