@@ -375,7 +375,8 @@ private fun SheetButton(
         Text(
             text = text,
             style = typo().labelSmall,
-            color = rememberSurfaceDarkColors().content,
+            // White on the seed red; the sheet's content colour is near-black in the light theme.
+            color = Color.White,
             modifier = Modifier.padding(vertical = 4.dp),
         )
     }

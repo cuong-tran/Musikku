@@ -2543,7 +2543,9 @@ fun SleepTimerBottomSheet(
                     Text(
                         text = stringResource(Res.string.set),
                         style = typo().labelSmall,
-                        color = rememberSurfaceDarkColors().content,
+                        // White on the seed red; the sheet's content colour is near-black in the light
+                        // theme. Disabled keeps it, since white on the faded fill would vanish there.
+                        color = if (isSetEnabled) Color.White else rememberSurfaceDarkColors().content,
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }

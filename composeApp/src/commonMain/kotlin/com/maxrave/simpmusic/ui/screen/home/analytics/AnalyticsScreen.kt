@@ -1347,7 +1347,10 @@ private fun DateRangeSection(
                         Text(
                             text = "$playCount ${stringResource(Res.string.lower_plays)}",
                             style = typo().bodySmall,
-                            color = MaterialTheme.colorScheme.surface,
+                            // White, not surface: this screen is always ForceDarkContent, so surface is
+                            // near-black, and on the seed red that is ~3.7:1. White reads on the red
+                            // fill and on the dark track beside it.
+                            color = Color.White,
                             maxLines = 1,
                             modifier =
                                 Modifier
