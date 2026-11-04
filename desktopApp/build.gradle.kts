@@ -429,9 +429,11 @@ tasks.register("packageConveyorAppImage") {
         }
         FileUtils.copyDirectory(conveyorOutput, appDir)
 
-        // Ensure top-level PNG icon expected by appimagetool exists.
+        // Ensure top-level PNG icon expected by appimagetool exists. Named after Musikku, not
+        // upstream's "simpmusic": AppRun installs it under this name into the user's icon theme,
+        // where SimpMusic's AppImage installs its own simpmusic.png.
         val iconSrc = rootDir.resolve("composeApp/icon/circle_app_icon.png")
-        val iconDst = appDir.resolve("simpmusic.png")
+        val iconDst = appDir.resolve("musikku.png")
         if (!iconDst.exists() && iconSrc.exists()) {
             FileUtils.copyFile(iconSrc, iconDst)
         }
@@ -439,7 +441,10 @@ tasks.register("packageConveyorAppImage") {
         val versionName =
             libs.versions.version.name
                 .get()
-        val desktopFile = appDir.resolve("simpmusic.desktop")
+        // app.musikku.desktop, after DESKTOP_APP_ID: AppRun installs it under this name, which is
+        // also the MPRIS DesktopEntry in core's JvmMediaPlayerHandlerImpl. Upstream's AppImage
+        // installs com-maxrave-simpmusic-MainKt.desktop, so the two no longer overwrite each other.
+        val desktopFile = appDir.resolve("app.musikku.desktop")
         // This file, not Conveyor's, is what actually reaches the user: AppRun installs it into
         // ~/.local/share/applications and runs update-desktop-database. So every scheme listed in
         // `app.url-schemes` in conveyor.conf has to be repeated here as an x-scheme-handler MIME
@@ -453,7 +458,7 @@ tasks.register("packageConveyorAppImage") {
             |Name=Musikku
             |Comment=Musikku v$versionName - FOSS YouTube Music Client
             |Exec=bin/simpmusic %u
-            |Icon=simpmusic
+            |Icon=musikku
             |Terminal=false
             |Categories=Audio;AudioVideo;
             |StartupWMClass=Musikku
@@ -469,11 +474,12 @@ tasks.register("packageConveyorAppImage") {
             |SELF=${'$'}(readlink -f "${'$'}0")
             |HERE=${'$'}{SELF%/*}
             |
-            |# Install icon into XDG dirs so GNOME/KDE pick it up the first time.
+            |# Install icon into XDG dirs so GNOME/KDE pick it up the first time. Musikku's own name:
+            |# simpmusic.png in the same folder belongs to upstream SimpMusic's AppImage.
             |ICON_DIR="${'$'}HOME/.local/share/icons/hicolor/256x256/apps"
-            |if [ ! -f "${'$'}ICON_DIR/simpmusic.png" ] || [ "${'$'}HERE/simpmusic.png" -nt "${'$'}ICON_DIR/simpmusic.png" ]; then
+            |if [ ! -f "${'$'}ICON_DIR/musikku.png" ] || [ "${'$'}HERE/musikku.png" -nt "${'$'}ICON_DIR/musikku.png" ]; then
             |    mkdir -p "${'$'}ICON_DIR"
-            |    cp "${'$'}HERE/simpmusic.png" "${'$'}ICON_DIR/simpmusic.png"
+            |    cp "${'$'}HERE/musikku.png" "${'$'}ICON_DIR/musikku.png"
             |    gtk-update-icon-cache -f -t "${'$'}HOME/.local/share/icons/hicolor" 2>/dev/null || true
             |fi
             |
@@ -481,13 +487,21 @@ tasks.register("packageConveyorAppImage") {
             |DESKTOP_DIR="${'$'}HOME/.local/share/applications"
             |mkdir -p "${'$'}DESKTOP_DIR"
             |APPIMAGE_PATH="${'$'}{APPIMAGE:-${'$'}SELF}"
-            |sed "s|Exec=bin/simpmusic|Exec=${'$'}APPIMAGE_PATH|" "${'$'}HERE/simpmusic.desktop" > "${'$'}DESKTOP_DIR/com-maxrave-simpmusic-MainKt.desktop"
+            |sed "s|Exec=bin/simpmusic|Exec=${'$'}APPIMAGE_PATH|" "${'$'}HERE/app.musikku.desktop" > "${'$'}DESKTOP_DIR/app.musikku.desktop"
+            |
+            |# Older Musikku builds installed their entry as com-maxrave-simpmusic-MainKt.desktop, the
+            |# name upstream SimpMusic's AppImage still uses. Remove that file only when it is Musikku's
+            |# (its Name, or an Exec that runs a Musikku AppImage), never when it is SimpMusic's.
+            |LEGACY_DESKTOP="${'$'}DESKTOP_DIR/com-maxrave-simpmusic-MainKt.desktop"
+            |if [ -f "${'$'}LEGACY_DESKTOP" ] && { grep -qx 'Name=Musikku' "${'$'}LEGACY_DESKTOP" || grep -qiE '^Exec=.*musikku[^/]*\.appimage' "${'$'}LEGACY_DESKTOP"; }; then
+            |    rm -f "${'$'}LEGACY_DESKTOP"
+            |fi
             |update-desktop-database "${'$'}DESKTOP_DIR" 2>/dev/null || true
             |# Make this entry, which now points at this AppImage, the one that opens our links. With
             |# several versions integrated (AppImageLauncher writes an entry per AppImage, each claiming
             |# the schemes), xdg-open took the first entry by name, an old version: it lost the Discord
             |# and Last.fm callbacks, since it hands links to the running app the old way (#2894).
-            |xdg-mime default com-maxrave-simpmusic-MainKt.desktop x-scheme-handler/simpmusic x-scheme-handler/wordbyword 2>/dev/null || true
+            |xdg-mime default app.musikku.desktop x-scheme-handler/simpmusic x-scheme-handler/wordbyword 2>/dev/null || true
             |
             |# Cap glibc's per-thread malloc arenas.
             |#
