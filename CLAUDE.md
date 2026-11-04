@@ -1,3 +1,5 @@
+**Musikku fork:** read @CLAUDE_MUSIKKU.md first. It says what this fork changes from upstream SimpMusic, and how to keep those changes through an upstream merge or rebase. Keep this file identical to upstream apart from this line.
+
 # CLAUDE.md - SimpMusic Project Guide for AI Agents
 
 ## 🌐 Language Rule
