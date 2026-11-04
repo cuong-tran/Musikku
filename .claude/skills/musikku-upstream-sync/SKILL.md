@@ -108,7 +108,9 @@ conflict on every step. Rebuild the series from the finished tree instead.
 - Upstream can change icon structure under a merge (new round foregrounds, a macOS
   `rounded_app_icon`): the build files then point at SimpMusic artwork with no conflict at
   all. List new binary assets with the sweep's `--stat` command every time.
-- The Linux MPRIS DesktopEntry must name the `.desktop` file the AppImage installs, which
-  stays `com-maxrave-simpmusic-MainKt` on purpose; do not "fix" it to `app.musikku`.
+- The Linux MPRIS DesktopEntry must name the `.desktop` file the AppImage installs:
+  `app.musikku`, since AppRun writes `app.musikku.desktop` (and `musikku.png`). Do not set
+  either back to upstream's `com-maxrave-simpmusic-MainKt` / `simpmusic.png`: those are the
+  files SimpMusic's own AppImage installs, so whichever app ran last would own them.
 - Inside an `object : SimpleFileVisitor` body, `set += item` on a `val` set can resolve to a
   reassignment and fail to compile; use `add`.
