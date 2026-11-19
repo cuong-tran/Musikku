@@ -25,7 +25,7 @@ Both goals lead to one rule: **change as little as possible.** The fork changes 
 | `core/` submodule | `upstream_core` | `maxrave-dev/core` | `multiplatform` |
 
 - A fresh clone has only the two `origin` remotes (`git submodule update --init core` names the submodule's after `.gitmodules`). Add the upstream ones before a merge or a sync: `git remote add upstream https://github.com/maxrave-dev/SimpMusic` and `git -C core remote add upstream_core https://github.com/maxrave-dev/core`.
-- A sync that rebases instead of merging (the `musikku-upstream-sync` skill in `.claude/skills/`) rewrites `musikku` in BOTH repos, pushed core first with `--force-with-lease`. It is either prepared on `musikku_update` for the owner to move `musikku` onto (2026-11-04) or done on `musikku` itself when the owner asks for that (2026-11-20).
+- A sync that rebases instead of merging (the `musikku-upstream-sync` skill in `.claude/skills/`) rewrites `musikku` in BOTH repos, pushed core first with `--force-with-lease`. It works on `musikku` only, and first tags the tip it rewrites with the app's version (`x.x.x`, e.g. `2.5.0`) in both repos and pushes the tags.
 - `.gitmodules` points `core` at `cuong-tran/simpmusic_core`. The superproject's `core` pointer must always name a commit that is on that repo's `musikku` branch and has been pushed there, or a fresh clone cannot check it out.
 - Contribution branches (`fix/…`, `feat/…`) start from `upstream/dev` and never carry fork-only commits. See **Contributing upstream**.
 

@@ -1,19 +1,15 @@
 ---
 name: musikku-upstream-sync
-description: Use when bringing the Musikku fork up to date with upstream SimpMusic by rebasing instead of merging - rebasing core (cuong-tran/simpmusic_core) onto maxrave-dev/core and the app (cuong-tran/Musikku) onto maxrave-dev/SimpMusic, adapting each fork commit to what upstream changed, pointing every app commit at the new core tip, reviewing the fork commits with /code-review (fixing only what the fork caused), and pushing core first. Covers rebasing musikku in place and the rebase-and-fold onto musikku_update.
+description: Use when bringing the Musikku fork up to date with upstream SimpMusic by rebasing instead of merging - rebasing core (cuong-tran/simpmusic_core) onto maxrave-dev/core and the app (cuong-tran/Musikku) onto maxrave-dev/SimpMusic, adapting each fork commit to what upstream changed, pointing every app commit at the new core tip, reviewing the fork commits with /code-review (fixing only what the fork caused), and pushing core first. Works only on branch musikku, which is tagged with its version (x.x.x) in both repos before the rebase.
 ---
 
 # Musikku upstream sync (rebase)
 
 Brings both repos up to date with upstream by rebasing the fork's commits onto it, in BOTH repos,
-core first. Read `CLAUDE_MUSIKKU.md` first: its **What the fork changes** groups are the list of
+core first, on branch `musikku` and nowhere else: no side branch is prepared for the owner to move
+`musikku` onto. Read `CLAUDE_MUSIKKU.md` first: its **What the fork changes** groups are the list of
 fork changes, its **Conflict rules** decide every conflict, and its **sweep** finds new upstream
 code that needs a group re-applied. This skill holds the mechanics and the traps.
-
-| Mode | When | Branch | Done on |
-|---|---|---|---|
-| Rebase in place | the owner asks to rebase `musikku` (the usual request) | `musikku` | 2026-11-20 |
-| Rebase and fold | the owner asks for one commit per fork change | `musikku_update`, which the owner then moves `musikku` onto | 2026-11-04 |
 
 The usual request, in the owner's words: rebase `simpmusic_core/musikku` onto upstream, fix
 conflicts, and for each fork commit find whether upstream's new code needs more of that change;
@@ -42,7 +38,30 @@ git -C core merge-base --is-ancestor "$PIN" upstream_core/multiplatform && echo 
 - Rebase core onto `upstream_core/multiplatform` as long as it contains `$PIN`; on 2026-11-20 the
   pin WAS that tip.
 - Commits the owner added after the last sync (review fixes, core bumps, fixes carried ahead of
-  upstream) stay their own commits in an in-place rebase.
+  upstream) stay their own commits in the rebase.
+
+### Tag the current version first, in both repos
+
+Before rebasing anything, tag the tip that is about to be rewritten, so it stays reachable after
+the force push. The tag is the app's `version-name` at that tip, bare `x.x.x` (no `v`: upstream's
+tags are `v2.6.0`, ours `2.5.0`), a lightweight tag, the same name in both repos: core's tag goes
+on core's `origin/musikku`, which is what the app's tip points at.
+
+```bash
+VER=$(git show origin/musikku:gradle/libs.versions.toml | sed -n 's/^version-name = "\(.*\)"/\1/p')
+echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || echo "not x.x.x: $VER"
+git ls-remote --tags origin "refs/tags/$VER"; git -C core ls-remote --tags origin "refs/tags/$VER"
+git tag "$VER" origin/musikku && git push origin "refs/tags/$VER"
+git -C core tag "$VER" origin/musikku && git -C core push origin "refs/tags/$VER"
+```
+
+- Core is tagged at its `origin/musikku`, which must be the commit the app's tip points at
+  (`git ls-tree origin/musikku core`); if it is not, stop and ask the owner which one to tag.
+- If the tag already exists on either remote (upstream shipped no new version since the last sync),
+  stop and ask the owner: never move or overwrite a tag, and never delete one.
+- Push the one tag by name, never `git push --tags`: the clone also holds upstream's `v*` tags.
+- On 2026-11-20 the owner had tagged `2.5.0` (app `ab04328`, core `c3a257d`) by hand before the
+  rebase; from now on it is this step.
 
 ## 1. Survey upstream first
 
@@ -148,9 +167,9 @@ Known keeps that the sweep will print again: wire and protocol names (`X-SimpMus
    New traps go into this skill in the same commit.
 7. Review (below), then `git push --force-with-lease=musikku:origin/musikku origin musikku`.
 
-## 4. Fold (only in the rebase-and-fold mode)
+## 4. Fold (only when the owner asks for one commit per fork change)
 
-Do not fold with `rebase -i` squashes: commits touching the same file in different features
+Done on 2026-11-04. It still happens on `musikku`, after the rebase and before the push. Do not fold with `rebase -i` squashes: commits touching the same file in different features
 conflict on every step. Rebuild the series from the finished tree instead.
 
 1. `FINAL=$(git rev-parse HEAD)` once every fix is in. List what the fork changes:
@@ -165,9 +184,8 @@ conflict on every step. Rebuild the series from the finished tree instead.
 5. `git diff --quiet $FINAL HEAD && echo IDENTICAL`, then `git show --stat` each commit.
 6. In the app, the first commit wires the submodule (`.gitmodules` plus the gitlink at the core
    tip) and the guide goes last, since it names every other id.
-7. `git switch musikku_update && git reset --hard fold && git branch -D fold`; push both
-   `musikku_update` branches core first, and tell the owner that moving `musikku` onto them is a
-   force push, core first.
+7. `git switch musikku && git reset --hard fold && git branch -D fold` (the local `fold`
+   branch is scratch and is never pushed); then push `musikku` as above, core first.
 
 Feature order used on 2026-11-04: submodule wiring, Android app id and official-build check, the
 app's name, logo and icon pipeline, desktop rename (with the desktop artifact names in CI), CI
@@ -204,9 +222,9 @@ Run `/code-review` once per repo, after its rebase and adaptations, on the fork'
   (`git -C core merge-base --is-ancestor <tip> origin/musikku`), no commit carries Claude
   attribution (`git log --format=%B upstream/main..HEAD | grep -iE 'co-authored|claude'`), and every
   author is the owner.
-- Report: per repo the new base, new tip, number of fork commits and the OLD tip (for recovery);
-  what upstream made the fork change, per commit; review outcomes; anything dropped (empty bump
-  commits) or left stale (`musikku_update`).
+- Report: per repo the version tag pushed (the old tip, for recovery), the new base, the new tip
+  and the number of fork commits; what upstream made the fork change, per commit; review
+  outcomes; anything dropped (empty bump commits).
 
 ## Traps that have already cost time
 
