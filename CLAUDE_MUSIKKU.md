@@ -25,7 +25,7 @@ Both goals lead to one rule: **change as little as possible.** The fork changes 
 | `core/` submodule | `upstream_core` | `maxrave-dev/core` | `multiplatform` |
 
 - A fresh clone has only the two `origin` remotes (`git submodule update --init core` names the submodule's after `.gitmodules`). Add the upstream ones before a merge or a sync: `git remote add upstream https://github.com/maxrave-dev/SimpMusic` and `git -C core remote add upstream_core https://github.com/maxrave-dev/core`.
-- A sync that rebases instead of merging is prepared on `musikku_update` in BOTH repos (the `musikku-upstream-sync` skill in `.claude/skills/`), and the owner then moves `musikku` onto it, core first.
+- A sync that rebases instead of merging (the `musikku-upstream-sync` skill in `.claude/skills/`) rewrites `musikku` in BOTH repos, pushed core first with `--force-with-lease`. It is either prepared on `musikku_update` for the owner to move `musikku` onto (2026-11-04) or done on `musikku` itself when the owner asks for that (2026-11-20).
 - `.gitmodules` points `core` at `cuong-tran/simpmusic_core`. The superproject's `core` pointer must always name a commit that is on that repo's `musikku` branch and has been pushed there, or a fresh clone cannot check it out.
 - Contribution branches (`fix/…`, `feat/…`) start from `upstream/dev` and never carry fork-only commits. See **Contributing upstream**.
 
@@ -33,8 +33,8 @@ Both goals lead to one rule: **change as little as possible.** The fork changes 
 
 Update this after every merge, because these commits are the `OLD` side of the sweep in **Merging upstream**.
 
-- **Superproject**: `upstream/main` at `b5cff20` (Merge PR #2791, 2026-11-01). On 2026-11-04 the fork's commits were rebased onto it and folded into one commit per change, fix-ups included, so `musikku` was rewritten and every id below changed. Before that: `f037043d`, merged.
-- **core**: upstream pins `1830a60`. Core was rebased and folded the same way, onto `upstream_core/multiplatform` at `344d614` (which contains `1830a60`). Every superproject commit of that series points at its tip, `5263b99`; the review fixes after it point at `c463b34`, and from `b8e375e` on at `c3a257d`, which adds a download fix carried ahead of upstream (see **Contributing upstream**). Before that: `b9f4ceac`, merged.
+- **Superproject**: `upstream/main` at `140673a` (Merge PR #2879, 2026-11-14). On 2026-11-20 the fork's commits were rebased onto it, one by one and not folded, so `musikku` was rewritten again and every id below changed. Upstream's changes that the fork had to follow went into the commit they belong to. Before that: `b5cff20`, rebased and folded on 2026-11-04; `f037043d`, merged.
+- **core**: upstream pins `8413a25`, the tip of `upstream_core/multiplatform` (Merge PR #59, library sync). Core was rebased onto it the same way, and every superproject commit points at its tip, `f15ee25`, from the first commit on. The old "bump core" commit for the download fix carried ahead of upstream became empty that way and was dropped; the fix itself is core `f15ee25` (see **Contributing upstream**). Before that: `344d614` (pins `1830a60`), rebased and folded; `b9f4ceac`, merged.
 
 ## 🧾 What the fork changes
 
@@ -46,22 +46,22 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
 - `Config.OFFICIAL_PACKAGE_NAMES` lists Musikku's two ids and the vivo build's `com.spotify.music`, and no longer upstream's `com.maxrave.simpmusic` ids, which a renamed Musikku APK could pass as. The signing-key half of `SharedViewModel.checkOfficialBuild()` is commented out, because it compares against upstream's F-Droid key and Musikku is signed with the fork's own key. The package-name half stays.
 - The update dialog's download button opens `github.com/cuong-tran/Musikku/releases`.
 - **Watch for**: a new `targetPackage="com.maxrave.simpmusic"`, any new signature or package check, a new `simpmusic.org/download` link.
-- **Commits**: `d506e7b`; core: `4ecb91b`. The vivo debug shortcuts were merged upstream as #2689 and have left the fork's diff.
+- **Commits**: `1afd490`; core: `f820163`. The vivo debug shortcuts were merged upstream as #2689 and have left the fork's diff.
 
 ### 2. The app's name
 
 - Text that names the app says Musikku. Text that names upstream stays SimpMusic: the SimpMusic Lyrics and Charts services, the import file format, the credits and the unofficial-build notice. (The review, blog and footguns prompts named it too; group 8 removed them.)
-- This covers `app_name` (shared, plus the Android launcher label and `Musikku Dev` for debug) and about 20 string keys in every locale. Turkish, Azerbaijani, Finnish and Korean inflect the name, so those were fixed by hand. It also covers hardcoded text: the share cards, the listening receipt, saved-image and log-export file names, the notification channel name (its id stays, so users keep their settings; core renames the existing channel on start, since Media3 only names it when creating it), the auto-backup file names and folder, and the fastlane title and tagline. Changelogs are never rewritten.
+- This covers `app_name` (shared, plus the Android launcher label and `Musikku Dev` for debug) and about 20 string keys in every locale, plus ten newer keys that so far exist only in English: library sync's and the Discord and browser sign-in steps. Their translations will name SimpMusic when Crowdin brings them, so they need this group then. Turkish, Azerbaijani, Finnish and Korean inflect the name, so those were fixed by hand. It also covers hardcoded text: the share cards, the listening receipt, saved-image and log-export file names, the notification channel name (its id stays, so users keep their settings; core renames the existing channel on start, since Media3 only names it when creating it), the auto-backup file names and folder, and the fastlane title and tagline. Changelogs are never rewritten.
 - **Watch for**: new strings or literals that name the app. Upstream manages translations on Crowdin and the fork edits them anyway, so every Crowdin sync can bring `SimpMusic` back.
-- **Commits**: `586a2a8`; core: `5263b99` (the notification channel).
+- **Commits**: `6d68bf5`; core: `fd425b5` (the notification channel).
 
 ### 3. Brand: icon and colour
 
 - Every icon asset (launcher, in-app logo, desktop, the macOS `rounded_app_icon`, DMG background, store images) is regenerated from the Musikku artwork by `scripts/icons/`, whose `README.md` holds the pipeline and its traps. Two things outside it: the three `mono.xml` copies (one lives in `core`) and the two `monochrome.xml` copies must stay byte-identical, and the adaptive launcher background is now a `@mipmap` raster.
-- The seed colour is the leaf red `#D13433` instead of `#8ECAE6`. This covers `seed`, the default custom colour and the preset list (the old blue is kept second, `#EF5350` is dropped). Text and icons drawn on a seed fill are white: the check mark on a seed-filled circle, the Analytics date-range bar label, the sleep timer's Set button (its old colour while disabled) and Login Sync's sheet button. Dark content on `#D13433` is about 3.5–3.7:1, under 4.5:1 for small text.
+- The seed colour is the leaf red `#D13433` instead of `#8ECAE6`. This covers `seed`, the default custom colour and the custom-colour presets: upstream's are other music apps' brand colours, and `"FFD13433" to "Musikku"` leads them, three across instead of four so the nine fill three rows. Text and icons drawn on a seed fill are white: the check mark on a seed-filled circle, the Analytics date-range bar label, and the sleep timer's Set button (its old colour while disabled). Login Sync's sheet button is upstream's again: it now fills with the theme's primary and draws `onPrimary`. Dark content on `#D13433` is about 3.5–3.7:1, under 4.5:1 for small text.
 - **Watch for**: new or changed icon assets (keep ours or regenerate them, never take upstream's), a new `8ECAE6`, dark content drawn on `seed`.
 - The AppImage takes `circle_app_icon.png` (upstream deleted `composeApp/appimage/simpmusic.png` in `7c0a983`). Upstream's round-mask `ic_launcher_round_foreground` is not used: our round launcher icon keeps `ic_launcher_foreground`.
-- **Commits**: `9e2c121` (icons), `86d0352` (colour), `8c3c0bd` (white on seed); core: `5c46b59`, `3feef26`.
+- **Commits**: `c6bbfe8` (icons), `7fb07fd` (colour), `9387232` (white on seed); core: `21cd147`, `952389e`.
 
 ### 4. Desktop as its own app
 
@@ -73,30 +73,31 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
   - Conveyor's `rdns-name`, the macOS `bundleID` and `CFBundleURLName`
 
   The pending deep-link file is `musikku_pending_deeplink.txt`. Without these, a running SimpMusic holds Musikku's lock so Musikku quits at launch, and macOS treats the two as one app.
-- **Data**: `~/.musikku` (`DESKTOP_DATA_DIR`) holds settings, database, downloads, caches, covers, backups and logs. On first launch `LegacyDesktopDataImport` copies SimpMusic's `~/.simpmusic` in, without its logs, its launch banners or downloads still in progress. It follows links rather than copying them, hard-links downloads (safe only because `Ytmusic.download` deletes a download's old name before every attempt, the first included, rather than writing through it), and leaves out (and marks not downloaded) any download it cannot hard-link instead of copying gigabytes before a window is up. It runs before Koin and before file logging, and asks what to do if it fails. `MUSIC_DATABASE_VERSION` lets it refuse a database newer than this build.
-- **Kept**: `app.fsname = simpmusic` and everything named after it (`bin/simpmusic`, the mac zips, the `simpmusic.crt` / `simpmusic-*.msix` bundle names, and the MSIX Identity Name `Simpmusic`), and the `simpmusic://` and `wordbyword://` schemes.
+- **Data**: `~/.musikku` (`DESKTOP_DATA_DIR`) holds settings, database, downloads, caches (reverb, waveforms), covers, backups, logs, and library sync's pairing file and database copies. On first launch `LegacyDesktopDataImport` copies SimpMusic's `~/.simpmusic` in, without its logs, its launch banners, downloads still in progress, its library-sync pairing and database copies (with them Musikku would answer SimpMusic's phones as SimpMusic; it starts unpaired, with a sync id of its own), or its Discord OAuth login (Discord spends the refresh token on every refresh, so two apps holding the same one log each other out). It follows links rather than copying them, hard-links downloads (safe only because `Ytmusic.download` deletes a download's old name before every attempt, the first included, rather than writing through it), and leaves out (and marks not downloaded) any download it cannot hard-link instead of copying gigabytes before a window is up. It runs before Koin and before file logging, and asks what to do if it fails. `MUSIC_DATABASE_VERSION` lets it refuse a database newer than this build.
+- **Library sync port**: the computer end listens on a fixed port while a phone is paired. Musikku's core uses 48518 (`PairedSyncWire.PORT`), upstream 48517, so both desktop apps can serve their phones at once. A phone takes the port from the pairing QR and the computer's replies, so either phone app pairs with either computer. The busy-port message (`library_sync_port_in_use`) names 48518; upstream's `CLAUDE.md` still says 48517.
+- **Kept**: `app.fsname = simpmusic` and everything named after it (`bin/simpmusic`, the mac zips, the `simpmusic.crt` / `simpmusic-*.msix` bundle names, and the MSIX Identity Name `Simpmusic`), the `simpmusic://` and `wordbyword://` schemes (Discord's OAuth callback `simpmusic://discord-auth` among them), and the browser sign-in import's temp folder `simpmusic-browser-login`, which both apps share safely because a file lock keeps their imports apart.
 - **Windows MSIX**: the Identity Name stays upstream's `Simpmusic`, but the Publisher is `CN=Musikku` (Conveyor's self-signed certificate follows `app.display-name`; upstream's is `CN=SimpMusic`), so Musikku's package family is `Simpmusic_f44rw8h81n7b6` and upstream's `Simpmusic_ejp2bhxmz1qq6`: the two install side by side. Read from the 2026-09-28 `musikku-desktop` CI artifact. A match by Name alone therefore hits both apps, so `install.bat` reads Name, Publisher and Application Id from the MSIX it installs, removes only packages with that Name and Publisher, and launches by the installed PackageFamilyName.
-- **Watch for**: a new `".simpmusic"` path, temp file or lock named `simpmusic_…`; a Room version bump (set `MUSIC_DATABASE_VERSION`); anything new before `startKoin` that writes to the data folder; new uses of the app id; a new file AppRun installs into the user's XDG folders, or a new `com-maxrave-simpmusic-MainKt`; anything in `install.bat` that matches or launches a package by Name or by a hard-coded family; a new writer into `downloads/` that opens an existing name instead of deleting it first.
-- **Commits**: `f314363` (name), `b02abb5` (identity and data folder), `962ee92` (import), `1982d88` (AppImage menu entry and icon names, bumps core), `eec6fa7` (`install.bat` by package family); core: `d5c39eb`, `feb075a`, `edc6bac` (delete before every download attempt), `c463b34` (MPRIS DesktopEntry).
+- **Watch for**: a new `".simpmusic"` path, temp file or lock named `simpmusic_…`; a Room version bump (set `MUSIC_DATABASE_VERSION`); anything new before `startKoin` that writes to the data folder; new uses of the app id; a new file AppRun installs into the user's XDG folders, or a new `com-maxrave-simpmusic-MainKt`; anything in `install.bat` that matches or launches a package by Name or by a hard-coded family; a new writer into `downloads/` that opens an existing name instead of deleting it first; a new fixed port; a new file in the data folder that identifies this install to other devices or holds a single-use token (the import must leave it behind).
+- **Commits**: `b743d83` (name), `3893095` (identity, data folder and the busy-port message), `3e13c42` (import), `2018b90` (AppImage menu entry and icon names), `bacfdbe` (`install.bat` by package family); core: `f393e02` (id, data folder, library sync paths and port), `a86bfab` (import), `126545b` (delete before every download attempt), `856f70f` (MPRIS DesktopEntry).
 
 ### 5. Upstream's launch banners
 
 - The remote config is still upstream's, because it carries the TIDAL credentials, but its `promos` block is always stored as `"[]"`, so SimpMusic's banners never show, on Home or under the lyrics (both read that one block). The desktop import drops the block SimpMusic had saved, since Home reads it before the first fetch lands.
 - **Watch for**: new remote fields that put upstream's own content on screen.
-- **Commits**: core: `cc155d5`.
+- **Commits**: core: `ec7367c`.
 
 ### 6. Builds, CI and Sentry
 
 - Every workflow signs with `BASE_64_SIGNING_KEY`; the fork has no `SIGNING_KEY` secret. Each signed APK is uploaded on its own as `Musikku-<version>-…-<abi>.apk` with `upload-artifact@v7` and `archive: false`, and the job fails unless it finds exactly one APK per ABI. Desktop artifacts and the output of `build_and_sign_apk.sh` are named Musikku too.
 - Sentry reports to org `komikku`, project `musikku`, from both `androidApp` and `vivoAndroidApp`.
-- The workflows read four secrets the fork doesn't have: `SENTRY_DSN_JVM`, `LASTFM_API_KEY`, `LASTFM_SECRET` and `BLOCK_USERS_TOKEN`. They arrive empty, so desktop CI builds have no Sentry.
+- The workflows read four secrets the fork doesn't have: `SENTRY_DSN_JVM`, `LASTFM_API_KEY`, `LASTFM_SECRET` and `BLOCK_USERS_TOKEN`. They arrive empty, so desktop CI builds have no Sentry. Since upstream's Discord OAuth they also read `DISCORD_CLIENT_ID`; a build without it signs in to Discord through kizzy, as FOSS does, and one with it should use a Discord application of the fork's own, since the OAuth steps name Musikku. Set it only after giving the login a callback of the fork's own too: Discord returns through `simpmusic://discord-auth` (`DiscordOAuth.REDIRECT_URI` in core), a scheme SimpMusic also handles, so with both apps installed the OS can hand the code to SimpMusic and Musikku's login never completes. The new callback is registered on the fork's Discord application and changes `REDIRECT_URI`, the handlers in `App.kt` and `DesktopDeepLinkHandler`, and the schemes Android and Conveyor register, together.
 - **Watch for**: new jobs or upload steps, `SimpMusic` in artifact names, `SIGNING_KEY`, a new `sentry { }` block.
-- **Commits**: `2befec9`; the desktop artifact names are in `f314363`. The mac-zip artifact path was merged upstream as #2575 and has left the fork's diff.
+- **Commits**: `413794d`; the desktop artifact names are in `b743d83`. The mac-zip artifact path was merged upstream as #2575 and has left the fork's diff.
 
 ### 7. Repository wiring
 
 - `.gitmodules` points `core` at `cuong-tran/simpmusic_core` (branch `musikku`). A core change is committed there first, then the superproject bumps its pointer. `CLAUDE.md` is upstream's file plus one pointer line; everything else about Musikku lives in this file.
-- **Commits**: `3ca19bb` (the submodule), and the commit that adds this file and the `musikku-upstream-sync` skill, the last of the series.
+- **Commits**: `849c776` (the submodule), and the commits that add and update this file and the `musikku-upstream-sync` skill: `332635c`, `b108c97` (group 8), `8dfec0a` and the last of the series.
 
 ### 8. Upstream's promotional prompts and blog notifications
 
@@ -105,7 +106,7 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
 - Settings → About drops "Follow me on X", "Developer Blog" and the blog-notification switch. `DataStoreManager.blogNotificationEnabled` (core) is left in place, unread. The unused strings stay, since translations come from Crowdin.
 - Group 5 is the data side of the same idea: the launch banners and the lyrics promo line are emptied in core, so their UI stays as upstream wrote it.
 - **Watch for**: a new dialog on Home's `openAppTime` milestones, a new worker or channel that pushes upstream's news, a new link to the developer's X account or blog in Settings, and new uses of `blogNotificationEnabled`.
-- **Commits**: the commit that adds this group.
+- **Commits**: `b108c97`.
 
 ### Kept as upstream
 
@@ -114,7 +115,7 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
 
 ## 🔀 Merging upstream
 
-The fork follows upstream by **merging**, not by rebasing: `musikku` is pushed to `origin`, so rewriting it breaks other clones. The one exception was 2026-11-04, when both repos were rebased and folded on purpose (see **Last upstream sync**); the `musikku-upstream-sync` skill holds that procedure. Merge `upstream/main` to follow releases; merge `upstream/dev` only when you want unreleased work.
+The fork follows upstream by **merging**, not by rebasing: `musikku` is pushed to `origin`, so rewriting it breaks other clones. The exceptions were 2026-11-04 and 2026-11-20, when the owner had both repos rebased (see **Last upstream sync**); the `musikku-upstream-sync` skill holds that procedure. Merge `upstream/main` to follow releases; merge `upstream/dev` only when you want unreleased work.
 
 ### Steps
 
@@ -124,9 +125,9 @@ git switch musikku
 git fetch upstream
 git -C core fetch upstream_core
 NEW=upstream/main                                  # or upstream/dev
-OLD=b5cff20                                        # from "Last upstream sync"
+OLD=140673a                                        # from "Last upstream sync"
 NEW_CORE=$(git ls-tree "$NEW" core | awk '{print $3}')   # the core commit upstream pins
-OLD_CORE=1830a60                                   # from "Last upstream sync"
+OLD_CORE=8413a25                                   # from "Last upstream sync"
 
 # 1. core first: merge upstream's pinned commit into core/musikku
 git -C core switch musikku
@@ -151,11 +152,13 @@ git commit                                         # once every conflict is reso
 | `core` (the gitlink) | Use the commit from step 1 (`git -C core checkout musikku && git add core`). Never upstream's pin, which has no Musikku changes. |
 | `.gitmodules` | Keep ours (`cuong-tran/simpmusic_core`). |
 | Icons and artwork (`*.png`, `*.webp`, `*.icns`, `*.ico`, `mono.xml`, `monochrome.xml`, `ic_launcher*.xml`) | Keep ours (`git checkout --ours <file>`). If upstream changed the icon *structure* (new layer, density or asset), regenerate it with `scripts/icons/` instead of taking theirs. |
-| `values*/strings.xml` | Take upstream's, then re-apply group 2, including the grammar fixes. `git show 586a2a8 -- composeApp/src/commonMain/composeResources/values/strings.xml` lists the keys. Check for new keys that name the app. |
+| `values*/strings.xml` | Take upstream's, then re-apply group 2, including the grammar fixes. `git show 6d68bf5 -- composeApp/src/commonMain/composeResources/values/strings.xml` lists the keys. Check for new keys that name the app. |
 | `MusicDatabase.kt` `@Database(version = …)` | Keep `version = MUSIC_DATABASE_VERSION` and set the constant to upstream's new number. |
+| `SettingScreen` custom-colour presets | Take upstream's list, and keep `"FFD13433" to "Musikku"` first and the grid three across (group 3). |
+| `PairedSyncWire.PORT` (core), `library_sync_port_in_use` | Keep 48518 in both (group 4). |
 | `SharedViewModel.checkOfficialBuild` | Take upstream's logic, then comment out (or remove) the signing-key half again. Keep the package-name half. |
 | `CommonRepositoryImpl` promos write | Take upstream's surrounding changes, and keep writing `"[]"`. |
-| `HomeScreen` open-count milestones, the review/blog/footguns dialogs, `RssFeedNotifyWork`, the About rows in `SettingScreen` | Take upstream's other changes around them, and keep the prompts, the worker and the rows removed (group 8). |
+| `HomeScreen` open-count milestones, the review/blog/footguns dialogs, `RssFeedNotifyWork`, the About rows in `SettingScreen` | Take upstream's other changes around them, and keep the prompts, the worker and the rows removed (group 8). Imports the removal dropped can be needed again by new upstream code (`lifecycleScope` and `launch` in `MainActivity` were, for library sync): check each one. |
 | Workflows, `build_and_sign_apk.sh` | Take upstream's new steps, then re-apply group 6: Musikku names, `BASE_64_SIGNING_KEY`, one artifact per file. |
 | `androidApp` / `vivoAndroidApp` `build.gradle.kts` | Take upstream's, and keep `applicationId = "app.musikku"` and the Sentry org and project. |
 | `desktopApp/build.gradle.kts`, `conveyor.conf` | Take upstream's, and keep display name, `rdns-name`, `bundleID`, `packageName`, AppImage `appName`, `CFBundleURLName`, `StartupWMClass`, and the AppImage's `app.musikku.desktop` / `musikku.png` names with AppRun's legacy-entry cleanup (group 4). |
@@ -164,7 +167,7 @@ git commit                                         # once every conflict is reso
 
 ### Sweep new upstream code
 
-The sweep prints every **added** line in the upstream delta that matches something the fork changes. It skips binaries, changelogs, `README.md`, `CLAUDE.md`, and `import`/`package` lines. Each hit is either a place to re-apply a group or a known keep (see **Kept as upstream**). Over `bdf28a83..f037043d` it printed 122 lines, among them the leftovers that were then fixed by hand: the desktop log path, the vivo Sentry org and signing secret, `taste_card_subtitle`, and the share-card, receipt and log-export literals. Over `f037043d..b5cff20` it printed 80, and the leftovers were the new Hebrew locale, the song-recognition strings and a few Italian and Swedish translations. It only sees what the merge added. Text that already said SimpMusic before the last sync needs a full search instead (`git grep -n SimpMusic`).
+The sweep prints every **added** line in the upstream delta that matches something the fork changes. It skips binaries, changelogs, `README.md`, `CLAUDE.md`, and `import`/`package` lines. Each hit is either a place to re-apply a group or a known keep (see **Kept as upstream**). Over `bdf28a83..f037043d` it printed 122 lines, among them the leftovers that were then fixed by hand: the desktop log path, the vivo Sentry org and signing secret, `taste_card_subtitle`, and the share-card, receipt and log-export literals. Over `f037043d..b5cff20` it printed 80, and the leftovers were the new Hebrew locale, the song-recognition strings and a few Italian and Swedish translations. Over `b5cff20..140673a` it printed 13: library sync's, Discord's and the browser sign-in's new strings and the busy-port message; in core, over `344d614..8413a25`, it found library sync's and the waveform cache's paths under `~/.simpmusic`. It only sees what the merge added. Text that already said SimpMusic before the last sync needs a full search instead (`git grep -n SimpMusic`).
 
 ```bash
 # usage: sweep <repo dir> <old> <new>
@@ -178,7 +181,7 @@ sweep() {
         next unless /^\+/;
         next if /^\+\s*(import|package)\s/;
         print "$f: ", substr($_, 0, 200), (length($_) > 200 ? "\n" : "")
-          if /SimpMusic(?![A-Za-z])|simpmusic\.org|"com\.maxrave\.simpmusic|"\.simpmusic|simpmusic_|8ECAE6|com-maxrave-simpmusic|Simpmusic_|SIGNING_KEY|upload-artifact|OFFICIAL_PACKAGE_NAMES|FdroidSigningKeys|isOfficialBuild|targetPackage|org\.set\(|^\+\s*version = \d|promos|remote-config/;
+          if /SimpMusic(?![A-Za-z])|simpmusic\.org|"com\.maxrave\.simpmusic|"\.simpmusic|simpmusic_|8ECAE6|com-maxrave-simpmusic|Simpmusic_|48517|SIGNING_KEY|upload-artifact|OFFICIAL_PACKAGE_NAMES|FdroidSigningKeys|isOfficialBuild|targetPackage|org\.set\(|^\+\s*version = \d|promos|remote-config/;
       '
 }
 sweep . "$OLD" "$NEW"
@@ -194,6 +197,7 @@ What a hit usually means:
 | `"com.maxrave.simpmusic`, `targetPackage` | 1 (app id, shortcuts), 4 (desktop id). `namespace` and `…MainActivity` / `…action.*` stay. |
 | `".simpmusic`, `simpmusic_` | 4 (data folder, temp and IPC file names) |
 | `com-maxrave-simpmusic`, `Simpmusic_` | 4 (the AppImage's desktop entry and MPRIS name; MSIX package families in `install.bat`) |
+| `48517` | 4 (library sync's port, 48518 in Musikku) |
 | `8ECAE6` | 3 (brand colour) |
 | `SIGNING_KEY`, `upload-artifact` | 6 (CI) |
 | `OFFICIAL_PACKAGE_NAMES`, `FdroidSigningKeys`, `isOfficialBuild` | 1 (official-build check) |
@@ -205,17 +209,17 @@ The sweep cannot see new **binary** assets. List them with `git diff --stat "$OL
 
 ### Rebasing instead
 
-If a branch is ever rebased onto upstream (a short-lived local branch, never `musikku` once pushed), the same rules apply commit by commit: resolve each conflict with the table above, then run the sweep once at the end over the whole upstream range.
+If a branch is rebased onto upstream (a short-lived local branch, or `musikku` itself only when the owner asks, as on 2026-11-04 and 2026-11-20), the same rules apply commit by commit: resolve each conflict with the table above, then run the sweep once at the end over the whole upstream range, and put each fix in the fork commit it belongs to. The `musikku-upstream-sync` skill has the mechanics and the traps.
 
 ## 🤝 Contributing upstream
 
 - **Start from upstream, not from the fork.** Superproject: `git switch -c fix/<topic> upstream/dev`, then open the PR against `maxrave-dev/SimpMusic` `dev` (upstream's guideline: "create branch from `dev`"). Core: branch from `upstream_core/multiplatform` and open the PR against `maxrave-dev/core`.
 - **Keep fork-only changes out of those branches**: Musikku names, `app.musikku`, `DESKTOP_APP_ID` / `DESKTOP_DATA_DIR` values, the red seed, Musikku icons, the disabled signature check, the promos override, Sentry `komikku`, and CI artifact names and secrets. If a fix was written on `musikku`, cherry-pick it onto the upstream branch and strip those parts.
 - Follow `CLAUDE.md` in the upstream branch, including its Auto-Update Rule. That note belongs to the PR.
-- **Fixes carried ahead of upstream.** Core `c3a257d` (bumped in by `b8e375e`) makes `singleThreadedDownload` start each attempt with no error, so a download that fails an attempt and then succeeds is no longer reported as failed. It is a bug in upstream's code, not a fork change, so it belongs to no group above. The same change sits on `fix/single-threaded-download-retry` off `upstream_core/multiplatform` (`3f91074`, cuong-tran/simpmusic_core#1) and has not been sent to `maxrave-dev/core` yet. Drop the fork's copy once upstream has it. Until then a rebase-and-fold sync keeps it as its own commit: `Ytmusic.kt` also carries group 4's `edc6bac`, so the path is claimed twice on purpose.
+- **Fixes carried ahead of upstream.** Core `f15ee25` makes `singleThreadedDownload` start each attempt with no error, so a download that fails an attempt and then succeeds is no longer reported as failed. It is a bug in upstream's code, not a fork change, so it belongs to no group above. The same change sits on `fix/single-threaded-download-retry` off `upstream_core/multiplatform` (`3f91074`, cuong-tran/simpmusic_core#1) and has not been sent to `maxrave-dev/core` yet. Drop the fork's copy once upstream has it. Until then a rebase keeps it as its own commit, the last of core's: `Ytmusic.kt` also carries group 4's `126545b`, so the path is claimed twice on purpose.
 - **Once upstream merges a PR, drop the fork's copy on the next merge** (conflict rules, last row). Examples: #2575 (mac-zip artifact path) and #2689 (vivo debug shortcuts) were merged and left the fork's diff. #2690 (vivo APK artifact names) was closed, so that change stays in group 6.
 - **Shrink the fork when you can.** A fork change that is a neutral refactor upstream could accept leaves the fork with a one-line value change instead of a scattered edit. These are only suggestions and none of them has been proposed: the `DESKTOP_DATA_DIR` / `DESKTOP_APP_ID` constants with upstream's values (`.simpmusic`, `com.maxrave.simpmusic`), the `MUSIC_DATABASE_VERSION` constant, and share-card or file-name literals read from `app_name` instead of a hardcoded `"SimpMusic"`.
 
 ---
 
-**Last updated**: 2026-11-04
+**Last updated**: 2026-11-20
