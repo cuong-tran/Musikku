@@ -3,8 +3,9 @@ REM Musikku offline installer for Windows.
 REM Double-click this file. UAC will prompt for admin (needed for cert + sideload).
 REM
 REM Bundle requirement (same folder as this .bat):
-REM   - simpmusic.crt
-REM   - simpmusic-<version>.msix     (any .msix matching simpmusic-*.msix)
+REM   - Musikku.crt
+REM   - Musikku-<version>-windows-x64.msix     (any .msix matching Musikku-*.msix)
+REM CI renames Conveyor's simpmusic.crt and simpmusic-<version>.x64.msix to these.
 REM
 REM Only x64 MSIX is shipped — Windows 11 ARM64 hosts run it under Prism
 REM emulation. ARM64 native build is blocked upstream by a missing
@@ -26,14 +27,14 @@ echo === Musikku offline installer ===
 echo.
 
 REM --- 2. Install cert to Trusted People (idempotent via certutil) -----------
-if not exist "%~dp0simpmusic.crt" (
-    echo [ERROR] simpmusic.crt not found next to install.bat
+if not exist "%~dp0Musikku.crt" (
+    echo [ERROR] Musikku.crt not found next to install.bat
     pause
     exit /b 1
 )
 
-echo [1/3] Importing simpmusic.crt to LocalMachine\TrustedPeople ...
-certutil -addstore -f "TrustedPeople" "%~dp0simpmusic.crt"
+echo [1/3] Importing Musikku.crt to LocalMachine\TrustedPeople ...
+certutil -addstore -f "TrustedPeople" "%~dp0Musikku.crt"
 if %errorlevel% neq 0 (
     echo [ERROR] Certificate import failed.
     pause
@@ -42,10 +43,10 @@ if %errorlevel% neq 0 (
 
 REM --- 3. Find the bundled MSIX ----------------------------------------------
 set "MSIX="
-for %%f in ("%~dp0simpmusic-*.msix") do set "MSIX=%%~ff"
+for %%f in ("%~dp0Musikku-*.msix") do set "MSIX=%%~ff"
 
 if not defined MSIX (
-    echo [ERROR] No simpmusic-*.msix found in this folder.
+    echo [ERROR] No Musikku-*.msix found in this folder.
     pause
     exit /b 1
 )
