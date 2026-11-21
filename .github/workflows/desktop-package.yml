@@ -146,11 +146,20 @@ jobs:
           name: desktop-appimage
           path: output/Musikku-*.AppImage
 
-      - name: Upload macOS zips to run artifacts
-        uses: actions/upload-artifact@v4
+      # One artifact per Mac zip, uploaded as-is instead of inside another zip.
+      # archive: false takes a single file and names the artifact after it.
+      - name: Upload macOS zip (aarch64)
+        uses: actions/upload-artifact@v7
         with:
-          name: desktop-mac-zips
-          path: output/*-mac-*.zip
+          path: output/*-mac-aarch64.zip
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload macOS zip (amd64)
+        uses: actions/upload-artifact@v7
+        with:
+          path: output/*-mac-amd64.zip
+          archive: false
           if-no-files-found: error
 
       # Bundle Windows installer = install.bat + simpmusic.crt + msix.
@@ -216,11 +225,17 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "App version: $VERSION"
 
+      # skip-decompress keeps each file a .zip: download-artifact unpacks
+      # anything served as a zip, which would leave .app trees here instead of
+      # the zips the loop below reads. merge-multiple puts both zips straight
+      # into mac-zips/ rather than a folder per artifact.
       - name: Download Mac .zip artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
-          name: desktop-mac-zips
+          pattern: simpmusic-*-mac-*.zip
           path: mac-zips
+          merge-multiple: true
+          skip-decompress: true
 
       - name: Prepare background (Lanczos resize 2800x1600 → 1400x800)
         run: |
@@ -236,7 +251,13 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           shopt -s nullglob
-          for zip in mac-zips/simpmusic-*-mac-*.zip; do
+          zips=(mac-zips/simpmusic-*-mac-*.zip)
+          if [ "${#zips[@]}" -ne 2 ]; then
+            echo "::error::Expected two Mac zips (aarch64 + amd64), found ${#zips[@]}"
+            ls -la mac-zips || true
+            exit 1
+          fi
+          for zip in "${zips[@]}"; do
             arch="$(basename "$zip" | sed -nE 's/.*-mac-([a-z0-9]+)\.zip/\1/p')"
             [[ -z "$arch" ]] && { echo "Cannot infer arch from $zip" >&2; exit 1; }
             workdir="$(mktemp -d)"
@@ -253,8 +274,18 @@ jobs:
           done
           ls -lh dist/
 
-      - name: Upload Mac .dmg artifacts
-        uses: actions/upload-artifact@v4
+      # One artifact per .dmg, so each downloads on its own instead of inside a
+      # zip holding both. archive: false names the artifact after the file.
+      - name: Upload Mac .dmg (aarch64)
+        uses: actions/upload-artifact@v7
         with:
-          name: desktop-mac-dmg
-          path: dist/*.dmg
+          path: dist/*-mac-aarch64.dmg
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload Mac .dmg (amd64)
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/*-mac-amd64.dmg
+          archive: false
+          if-no-files-found: error
