@@ -135,7 +135,7 @@ jobs:
           signing_key: ${{ secrets.CONVEYOR_SIGNING_KEY }}
 
       # packageConveyorAppImage writes Musikku-x86_64.AppImage. The copy takes the
-      # version, like the APKs, zips and DMGs.
+      # version and a lowercase name, like the APKs, zips and DMGs.
       - name: Stage AppImage into output/ for upload
         run: |
           set -euo pipefail
@@ -146,7 +146,7 @@ jobs:
             echo "::error::Expected one AppImage, found ${#src[@]}"
             exit 1
           fi
-          cp "${src[0]}" "output/Musikku-${version}-linux-x86_64.AppImage"
+          cp "${src[0]}" "output/musikku-${version}-linux-x86_64.AppImage"
 
       - name: Show built artifacts
         run: ls -lh output/
@@ -155,12 +155,12 @@ jobs:
       - name: Upload AppImage
         uses: actions/upload-artifact@v7
         with:
-          path: output/Musikku-*-linux-x86_64.AppImage
+          path: output/musikku-*-linux-x86_64.AppImage
           archive: false
           if-no-files-found: error
 
       # Conveyor names its zips after app.fsname (simpmusic-<version>-mac-<arch>.zip).
-      # Move them to Musikku names, like the APKs and DMGs, one per arch.
+      # Move them to musikku names, like the APKs and DMGs, one per arch.
       - name: Name macOS zips
         run: |
           set -euo pipefail
@@ -173,7 +173,7 @@ jobs:
               echo "::error::Expected one Mac $arch zip, found ${#src[@]}"
               exit 1
             fi
-            mv "${src[0]}" "mac-zips/Musikku-${version}-mac-${arch}.zip"
+            mv "${src[0]}" "mac-zips/musikku-${version}-mac-${arch}.zip"
           done
           ls -lh mac-zips/
 
@@ -182,18 +182,18 @@ jobs:
       - name: Upload macOS zip (aarch64)
         uses: actions/upload-artifact@v7
         with:
-          path: mac-zips/Musikku-*-mac-aarch64.zip
+          path: mac-zips/musikku-*-mac-aarch64.zip
           archive: false
           if-no-files-found: error
 
       - name: Upload macOS zip (amd64)
         uses: actions/upload-artifact@v7
         with:
-          path: mac-zips/Musikku-*-mac-amd64.zip
+          path: mac-zips/musikku-*-mac-amd64.zip
           archive: false
           if-no-files-found: error
 
-      # Bundle Windows installer = install.bat + Musikku.crt + msix.
+      # Bundle Windows installer = install.bat + musikku.crt + msix.
       # Conveyor's default .exe wrapper + .appinstaller fetch URLs from
       # `site.base-url` (GitHub Releases /latest/download/) which 404 for
       # unreleased builds, so we ship our own scripts/windows/install.bat
@@ -207,7 +207,7 @@ jobs:
       #
       # Conveyor names the certificate and the msix after app.fsname
       # (simpmusic.crt, simpmusic-<version>.x64.msix). The bundle carries them
-      # under Musikku names, which are the ones install.bat looks for.
+      # under musikku names, which are the ones install.bat looks for.
       - name: Bundle Windows offline installer
         run: |
           set -euo pipefail
@@ -222,15 +222,15 @@ jobs:
             echo "::error::Expected one simpmusic-*.x64.msix in output/, found ${#msix[@]}"
             exit 1
           fi
-          name="Musikku-${version}-windows-x64"
+          name="musikku-${version}-windows-x64"
           mkdir -p installers/
           stage="$(mktemp -d)"
           cp scripts/windows/install.bat "$stage/"
-          cp output/simpmusic.crt        "$stage/Musikku.crt"
+          cp output/simpmusic.crt        "$stage/musikku.crt"
           cp "${msix[0]}"                "$stage/${name}.msix"
           ( cd "$stage" && zip -q -j \
             "${GITHUB_WORKSPACE}/installers/${name}-installer.zip" \
-            install.bat Musikku.crt "${name}.msix" )
+            install.bat musikku.crt "${name}.msix" )
           rm -rf "$stage"
           ls -lh installers/
 
@@ -239,7 +239,7 @@ jobs:
       - name: Upload Windows offline installer
         uses: actions/upload-artifact@v7
         with:
-          path: installers/Musikku-*-windows-x64-installer.zip
+          path: installers/musikku-*-windows-x64-installer.zip
           archive: false
           if-no-files-found: error
 
@@ -273,7 +273,7 @@ jobs:
       - name: Download Mac .zip artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: Musikku-*-mac-*.zip
+          pattern: musikku-*-mac-*.zip
           path: mac-zips
           merge-multiple: true
           skip-decompress: true
@@ -292,7 +292,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           shopt -s nullglob
-          zips=(mac-zips/Musikku-*-mac-*.zip)
+          zips=(mac-zips/musikku-*-mac-*.zip)
           if [ "${#zips[@]}" -ne 2 ]; then
             echo "::error::Expected two Mac zips (aarch64 + amd64), found ${#zips[@]}"
             ls -la mac-zips || true
@@ -305,7 +305,7 @@ jobs:
             unzip -q "$zip" -d "$workdir"
             app="$(find "$workdir" -maxdepth 2 -type d -name '*.app' | head -1)"
             [[ -d "$app" ]] || { echo "No .app inside $zip" >&2; exit 1; }
-            out="dist/Musikku-${VERSION}-mac-${arch}.dmg"
+            out="dist/musikku-${VERSION}-mac-${arch}.dmg"
             scripts/wrap-mac-dmg.sh \
               "$app" \
               build/dmg/dmg-bg-1400x800.png \
