@@ -29,9 +29,25 @@ on:
       - '.github/**/*.md'
       - '.github/FUNDING.yml'
       - '.github/ISSUE_TEMPLATE/**'
+  # Every pull request, whatever branch it targets. A pull request from a fork gets no secrets, so
+  # its Conveyor steps fail for want of CONVEYOR_SIGNING_KEY.
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'fastlane/**'
+      - 'assets/**'
+      - '.github/**/*.md'
+      - '.github/FUNDING.yml'
+      - '.github/ISSUE_TEMPLATE/**'
 
 permissions:
   contents: write
+
+# A new push to a pull request cancels the build still running for its previous push. Other
+# events get a group of their own (run_id), so pushes never cancel or queue behind each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-desktop-packages:

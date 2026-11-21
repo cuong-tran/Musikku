@@ -5,6 +5,12 @@ on:
   push:
     branches:
       - 'main'
+      - 'musikku'
+    # A release tag, x.x.x or x.x.x.x (never vx.x.x: those are upstream's). The release job runs
+    # only when the tag is on musikku; paths-ignore below is not applied to tag pushes.
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+.[0-9]+'
     paths-ignore:
       - 'README.md'
       - 'fastlane/**'
@@ -17,8 +23,59 @@ permissions:
   contents: write
 
 jobs:
+  # Decides whether to build and whether to draft a release. A tag push drafts one only when the tag
+  # is an x.x.x / x.x.x.x tag on musikku, checked now rather than once the builds are done: the
+  # upstream sync tags musikku's tip and then rebases musikku, after which the tag is no longer on it.
+  # A tag that is not on musikku builds nothing.
+  gate:
+    name: Check the trigger
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.check.outputs.build }}
+      release: ${{ steps.check.outputs.release }}
+    steps:
+      - name: Release only for a version tag on musikku
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ github.ref_name }}
+          DELETED: ${{ github.event.deleted }}
+        run: |
+          set -euo pipefail
+          out() { echo "build=$1" >> "$GITHUB_OUTPUT"; echo "release=$2" >> "$GITHUB_OUTPUT"; }
+          if [ "$EVENT" != push ] || [ "$REF_TYPE" != tag ]; then
+            out true false
+            exit 0
+          fi
+          if [ "$DELETED" = true ]; then
+            echo "Tag $TAG was deleted: nothing to build."
+            out false false
+            exit 0
+          fi
+          if ! [[ $TAG =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::notice::$TAG is not x.x.x or x.x.x.x: no build, no release."
+            out false false
+            exit 0
+          fi
+          # The commit the tag points at (an annotated tag is peeled), then whether musikku contains
+          # it: comparing it with musikku answers "identical" or "ahead" exactly when it does.
+          sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/refs/tags/${TAG}" --jq .sha)
+          status=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${sha}...musikku" --jq .status)
+          case "$status" in
+            identical|ahead)
+              echo "Tag $TAG (${sha::7}) is on musikku: build and draft a release."
+              out true true ;;
+            *)
+              echo "::notice::Tag $TAG (${sha::7}) is not on musikku ($status): no build, no release."
+              out false false ;;
+          esac
+
   build-full-release:
     name: Build full release version
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -122,6 +179,8 @@ jobs:
   # Full build, arm64-v8a only, signed with the same key so the official-build check accepts it.
   build-vivo-release:
     name: Build vivo release version
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -199,6 +258,8 @@ jobs:
 
   build-foss-release:
     name: Build foss release version
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -279,6 +340,8 @@ jobs:
 
   build-desktop-packages:
     name: Build desktop packages (AppImage + Mac zip + Windows msix)
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -577,3 +640,127 @@ jobs:
           path: dist/*-mac-amd64.dmg
           archive: false
           if-no-files-found: error
+
+  # Drafts the GitHub release for a version tag on musikku, with every file the jobs above uploaded
+  # and notes built from the commit subjects since the previous release tag. A re-run that finds the
+  # release already there only uploads the files again, so notes edited by hand are kept. It then
+  # tags core's commit with the same name.
+  draft-release:
+    name: Draft GitHub release
+    runs-on: ubuntu-latest
+    needs: [gate, build-full-release, build-vivo-release, build-foss-release, build-desktop-packages, wrap-mac-dmg]
+    if: needs.gate.outputs.release == 'true'
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      # fetch-depth: 0 brings every tag, which the notes need to find the previous release.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Lets the notes tell upstream's commits from the fork's own. Without it they list every
+      # commit under Musikku.
+      - name: Fetch upstream SimpMusic
+        run: |
+          git fetch --no-tags https://github.com/maxrave-dev/SimpMusic.git \
+            '+refs/heads/main:refs/remotes/upstream/main' \
+            '+refs/heads/dev:refs/remotes/upstream/dev' \
+            || echo "::warning::Could not fetch upstream: the notes list every commit under Musikku"
+
+      # skip-decompress keeps the zips (Mac apps, Windows installer) as zips; merge-multiple puts
+      # every file straight into release-files/.
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: musikku-*
+          path: release-files
+          merge-multiple: true
+          skip-decompress: true
+
+      - name: Check the release files
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          version=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          if [ "$version" != "$TAG" ]; then
+            echo "::warning::Tag $TAG differs from version-name $version, which names the files"
+          fi
+          missing=0
+          for f in \
+            "full-arm64-v8a.apk" "full-armeabi-v7a.apk" "full-x86_64.apk" "full-universal.apk" \
+            "foss-arm64-v8a.apk" "foss-armeabi-v7a.apk" "foss-x86_64.apk" "foss-universal.apk" \
+            "full-vivo-arm64-v8a.apk" "linux-x86_64.AppImage" \
+            "mac-aarch64.zip" "mac-amd64.zip" "mac-aarch64.dmg" "mac-amd64.dmg" \
+            "windows-x64-installer.zip"; do
+            name="musikku-${version}-${f}"
+            if [ ! -f "release-files/$name" ]; then
+              echo "::error::Missing $name"
+              missing=1
+            fi
+          done
+          ls -lh release-files/
+          exit "$missing"
+
+      - name: Draft release notes
+        run: |
+          set -euo pipefail
+          bash scripts/musikku-release-notes.sh "$TAG" > release-notes.md
+          cat release-notes.md
+
+      - name: Create the draft release
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists: uploading the files again, notes left as they are"
+            gh release upload "$TAG" release-files/* --clobber
+          else
+            gh release create "$TAG" release-files/* \
+              --draft --verify-tag --title "Musikku $TAG" --notes-file release-notes.md
+          fi
+
+      # Puts the same tag on the core commit this tag's commit points at, in the repository
+      # .gitmodules names, so the release's core stays reachable after a sync rebases core. The tag
+      # is lightweight, like the app's. A core tag that already exists is left alone: fine when it
+      # names the same commit, an error when it names another, since a tag is never moved.
+      # GITHUB_TOKEN cannot write to another repository, so this takes CORE_TAG_TOKEN: a
+      # fine-grained token with Contents read and write on the core repository only.
+      - name: Tag core's commit
+        env:
+          GH_TOKEN: ${{ secrets.CORE_TAG_TOKEN }}
+        run: |
+          set -euo pipefail
+          url=$(git config -f .gitmodules submodule.core.url)
+          core_repo=$(echo "$url" | sed -E 's~^(https://github\.com/|git@github\.com:)~~; s~\.git$~~; s~/$~~')
+          core_sha=$(git rev-parse "HEAD:core")
+          echo "Core: $core_repo at ${core_sha::7}"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::CORE_TAG_TOKEN is not set: tag $core_repo ${core_sha} as $TAG by hand"
+            exit 1
+          fi
+          existing=$(gh api "repos/${core_repo}/git/matching-refs/tags/${TAG}" \
+            --jq ".[] | select(.ref == \"refs/tags/${TAG}\") | .object.type + \" \" + .object.sha")
+          if [ -n "$existing" ]; then
+            read -r type sha <<< "$existing"
+            if [ "$type" = tag ]; then
+              sha=$(gh api "repos/${core_repo}/git/tags/${sha}" --jq .object.sha)
+            fi
+            if [ "$sha" = "$core_sha" ]; then
+              echo "::notice::$core_repo already has $TAG on ${core_sha::7}"
+              exit 0
+            fi
+            echo "::error::$core_repo has $TAG on ${sha::7}, not on ${core_sha::7}: left as it is"
+            exit 1
+          fi
+          status=$(gh api "repos/${core_repo}/compare/${core_sha}...musikku" --jq .status || echo unknown)
+          case "$status" in
+            identical|ahead) ;;
+            *) echo "::warning::Core ${core_sha::7} is not on $core_repo musikku ($status); tagging it anyway" ;;
+          esac
+          gh api -X POST "repos/${core_repo}/git/refs" \
+            -f "ref=refs/tags/${TAG}" -f "sha=${core_sha}" --jq .ref
+          echo "Tagged $core_repo ${core_sha::7} as $TAG"
