@@ -27,7 +27,7 @@
 #       <input-app>         e.g. /tmp/Musikku.app
 #       <background-png>    e.g. composeApp/icon/dmg-bg-1400x800.png
 #       <volume-icns>       e.g. composeApp/icon/circle_app_icon.icns
-#       <output-dmg>        e.g. dist/Musikku-1.2.1-mac-aarch64.dmg
+#       <output-dmg>        e.g. dist/musikku-1.2.1-mac-aarch64.dmg
 #
 # Requires (macOS host):  create-dmg, hdiutil, SetFile (xcode-select),
 #                         osascript, chflags.
