@@ -1,6 +1,6 @@
 ---
 name: musikku-upstream-sync
-description: Use when bringing the Musikku fork up to date with upstream SimpMusic by rebasing instead of merging - rebasing core (cuong-tran/simpmusic_core) onto maxrave-dev/core and the app (cuong-tran/Musikku) onto maxrave-dev/SimpMusic, adapting each fork commit to what upstream changed, pointing every app commit at the new core tip, reviewing the fork commits with /code-review (fixing only what the fork caused), and pushing core first. Works only on branch musikku, which is tagged with its version (x.x.x) in both repos before the rebase.
+description: Use when bringing the Musikku fork up to date with upstream SimpMusic by rebasing instead of merging - rebasing core (cuong-tran/simpmusic_core) onto maxrave-dev/core and the app (cuong-tran/Musikku) onto maxrave-dev/SimpMusic, adapting each fork commit to what upstream changed, pointing every app commit at the new core tip, reviewing the fork commits with /code-review (fixing only what the fork caused), and pushing core first. Works only on branch musikku. Before the rebase it offers to tag the tip in both repos (default no, the owner picks the name), and doesn't ask when the tip is already tagged.
 ---
 
 # Musikku upstream sync (rebase)
@@ -40,28 +40,60 @@ git -C core merge-base --is-ancestor "$PIN" upstream_core/multiplatform && echo 
 - Commits the owner added after the last sync (review fixes, core bumps, fixes carried ahead of
   upstream) stay their own commits in the rebase.
 
-### Tag the current version first, in both repos
+### Offer to tag the tip first, in both repos
 
-Before rebasing anything, tag the tip that is about to be rewritten, so it stays reachable after
-the force push. The tag is the app's `version-name` at that tip, bare `x.x.x` (no `v`: upstream's
-tags are `v2.6.0`, ours `2.5.0`), a lightweight tag, the same name in both repos: core's tag goes
-on core's `origin/musikku`, which is what the app's tip points at.
+Before rebasing anything, the tip about to be rewritten can be tagged, so it stays reachable after
+the force push. A tag named `x.x.x` or `x.x.x.x` also drafts a GitHub release of that tip (see
+below). Tagging is the owner's choice and the default is not to tag.
 
-```bash
-VER=$(git show origin/musikku:gradle/libs.versions.toml | sed -n 's/^version-name = "\(.*\)"/\1/p')
-echo "$VER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || echo "not x.x.x: $VER"
-git ls-remote --tags origin "refs/tags/$VER"; git -C core ls-remote --tags origin "refs/tags/$VER"
-git tag "$VER" origin/musikku && git push origin "refs/tags/$VER"
-git -C core tag "$VER" origin/musikku && git -C core push origin "refs/tags/$VER"
-```
+1. **Already tagged? Then don't ask.** If the app's `origin/musikku` already carries a tag on the
+   remote, say which one and move on. If core's tip has no tag of that name, say so too, but don't
+   create one.
 
-- Core is tagged at its `origin/musikku`, which must be the commit the app's tip points at
-  (`git ls-tree origin/musikku core`); if it is not, stop and ask the owner which one to tag.
-- If the tag already exists on either remote (upstream shipped no new version since the last sync),
-  stop and ask the owner: never move or overwrite a tag, and never delete one.
+   ```bash
+   git fetch origin --tags && git -C core fetch origin --tags
+   APP=$(git rev-parse origin/musikku); CORE=$(git -C core rev-parse origin/musikku)
+   # An annotated tag shows twice: its own id, then the commit as refs/tags/<name>^{}.
+   git ls-remote --tags origin | awk -v c="$APP" '$1 == c'
+   git -C core ls-remote --tags origin | awk -v c="$CORE" '$1 == c'
+   ```
+
+2. **Otherwise ask, with `AskUserQuestion`, and default to no.** Ask once whether to tag
+   `origin/musikku` (`<short sha>`, "<subject>") before the rebase. Make "No (Recommended)" the
+   first option and "Yes, tag it `<VER>`" the second, where `<VER>` is the app's `version-name` at
+   that tip. The automatic "Other" answer is how the owner gives a different name. Anything but a
+   clear yes or a name means no: rebase without a tag, and say in the report that the old tip can
+   only be recovered from the reflog.
+
+   ```bash
+   VER=$(git show origin/musikku:gradle/libs.versions.toml | sed -n 's/^version-name = "\(.*\)"/\1/p')
+   ```
+
+3. **Check the name, then tag both repos.** The tag is lightweight, has the same name in both repos,
+   and goes on each repo's `origin/musikku`. Core's tip must be the commit the app's tip points at
+   (`git ls-tree origin/musikku core`); if it isn't, stop and ask which one to tag.
+
+   ```bash
+   NAME=<the answer>
+   echo "$NAME" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$' || echo "no release for: $NAME"
+   git ls-remote --tags origin "refs/tags/$NAME"; git -C core ls-remote --tags origin "refs/tags/$NAME"
+   git tag "$NAME" origin/musikku && git push origin "refs/tags/$NAME"
+   git -C core tag "$NAME" origin/musikku && git -C core push origin "refs/tags/$NAME"
+   ```
+
+- A name that is not `x.x.x` / `x.x.x.x` (a `v` prefix, a suffix) still backs the tip up, but no
+  release is drafted for it. Say so before tagging, and never suggest `vx.x.x`: those are upstream's.
+- If the name already exists on either remote, ask for another: never move or overwrite a tag, and
+  never delete one.
 - Push the one tag by name, never `git push --tags`: the clone also holds upstream's `v*` tags.
+- The app's tag push runs `android-release.yml`, which drafts the GitHub release for that version.
+  Its first job (`gate`) checks that the tag is on `origin/musikku` when it runs. Wait until that
+  job has passed (`gh run list -w android-release.yml -L 1`) before force-pushing `musikku`, or the
+  tag is no longer on it and no release is drafted.
+  Its last step puts the same tag on core's commit itself, and is fine when core already has it
+  there, so tagging core by hand matters only for a name that drafts no release.
 - On 2026-11-20 the owner had tagged `2.5.0` (app `ab04328`, core `c3a257d`) by hand before the
-  rebase; from now on it is this step.
+  rebase.
 
 ## 1. Survey upstream first
 
@@ -222,7 +254,7 @@ Run `/code-review` once per repo, after its rebase and adaptations, on the fork'
   (`git -C core merge-base --is-ancestor <tip> origin/musikku`), no commit carries Claude
   attribution (`git log --format=%B upstream/main..HEAD | grep -iE 'co-authored|claude'`), and every
   author is the owner.
-- Report: per repo the version tag pushed (the old tip, for recovery), the new base, the new tip
+- Report: per repo the tag pushed or already on the old tip (or that none was made), the new base, the new tip
   and the number of fork commits; what upstream made the fork change, per commit; review
   outcomes; anything dropped (empty bump commits).
 
