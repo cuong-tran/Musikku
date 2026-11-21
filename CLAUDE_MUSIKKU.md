@@ -89,10 +89,11 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
 ### 6. Builds, CI and Sentry
 
 - Every workflow signs with `BASE_64_SIGNING_KEY`; the fork has no `SIGNING_KEY` secret. Each signed APK is uploaded on its own as `Musikku-<version>-…-<abi>.apk` with `upload-artifact@v7` and `archive: false`, and the job fails unless it finds exactly one APK per ABI. Desktop artifacts and the output of `build_and_sign_apk.sh` are named Musikku too.
+- The mac files are uploaded the same way, one artifact per file (aarch64 and amd64 apart), in both `desktop-package.yml` and `android-release.yml`: Conveyor's `simpmusic-<version>-mac-<arch>.zip` and the `Musikku-<version>-mac-<arch>.dmg` made from it. The DMG job fetches the zips with `download-artifact@v8`, `merge-multiple` and `skip-decompress`; without `skip-decompress` it unpacks any file served as a zip, and the loop that wraps the DMGs finds no zips.
 - Sentry reports to org `komikku`, project `musikku`, from both `androidApp` and `vivoAndroidApp`.
 - The workflows read four secrets the fork doesn't have: `SENTRY_DSN_JVM`, `LASTFM_API_KEY`, `LASTFM_SECRET` and `BLOCK_USERS_TOKEN`. They arrive empty, so desktop CI builds have no Sentry. Since upstream's Discord OAuth they also read `DISCORD_CLIENT_ID`; a build without it signs in to Discord through kizzy, as FOSS does, and one with it should use a Discord application of the fork's own, since the OAuth steps name Musikku. Set it only after giving the login a callback of the fork's own too: Discord returns through `simpmusic://discord-auth` (`DiscordOAuth.REDIRECT_URI` in core), a scheme SimpMusic also handles, so with both apps installed the OS can hand the code to SimpMusic and Musikku's login never completes. The new callback is registered on the fork's Discord application and changes `REDIRECT_URI`, the handlers in `App.kt` and `DesktopDeepLinkHandler`, and the schemes Android and Conveyor register, together.
-- **Watch for**: new jobs or upload steps, `SimpMusic` in artifact names, `SIGNING_KEY`, a new `sentry { }` block.
-- **Commits**: `413794d`; the desktop artifact names are in `b743d83`. The mac-zip artifact path was merged upstream as #2575 and has left the fork's diff.
+- **Watch for**: new jobs or upload steps (one that puts several mac files in one artifact, or a `download-artifact` of the mac zips without `skip-decompress`), `SimpMusic` in artifact names, `SIGNING_KEY`, a new `sentry { }` block.
+- **Commits**: `413794d`; the desktop artifact names are in `b743d83`, the one-artifact-per-file mac uploads in `5c9d993`. The mac-zip artifact path was merged upstream as #2575 and has left the fork's diff.
 
 ### 7. Repository wiring
 
@@ -222,4 +223,4 @@ If a branch is rebased onto upstream (a short-lived local branch, or `musikku` i
 
 ---
 
-**Last updated**: 2026-11-20
+**Last updated**: 2026-11-21
