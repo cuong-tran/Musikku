@@ -393,19 +393,37 @@ jobs:
           name: desktop-appimage
           path: output/Musikku-*.AppImage
 
+      # Conveyor names its zips after app.fsname (simpmusic-<version>-mac-<arch>.zip).
+      # Move them to Musikku names, like the APKs and DMGs, one per arch.
+      - name: Name macOS zips
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          version=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          mkdir -p mac-zips
+          for arch in aarch64 amd64; do
+            src=(output/*-mac-"$arch".zip)
+            if [ "${#src[@]}" -ne 1 ]; then
+              echo "::error::Expected one Mac $arch zip, found ${#src[@]}"
+              exit 1
+            fi
+            mv "${src[0]}" "mac-zips/Musikku-${version}-mac-${arch}.zip"
+          done
+          ls -lh mac-zips/
+
       # One artifact per Mac zip, uploaded as-is instead of inside another zip.
       # archive: false takes a single file and names the artifact after it.
       - name: Upload macOS zip (aarch64)
         uses: actions/upload-artifact@v7
         with:
-          path: output/*-mac-aarch64.zip
+          path: mac-zips/Musikku-*-mac-aarch64.zip
           archive: false
           if-no-files-found: error
 
       - name: Upload macOS zip (amd64)
         uses: actions/upload-artifact@v7
         with:
-          path: output/*-mac-amd64.zip
+          path: mac-zips/Musikku-*-mac-amd64.zip
           archive: false
           if-no-files-found: error
 
@@ -479,7 +497,7 @@ jobs:
       - name: Download Mac .zip artifacts
         uses: actions/download-artifact@v8
         with:
-          pattern: simpmusic-*-mac-*.zip
+          pattern: Musikku-*-mac-*.zip
           path: mac-zips
           merge-multiple: true
           skip-decompress: true
@@ -498,7 +516,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           shopt -s nullglob
-          zips=(mac-zips/simpmusic-*-mac-*.zip)
+          zips=(mac-zips/Musikku-*-mac-*.zip)
           if [ "${#zips[@]}" -ne 2 ]; then
             echo "::error::Expected two Mac zips (aarch64 + amd64), found ${#zips[@]}"
             ls -la mac-zips || true
