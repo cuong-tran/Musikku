@@ -5,7 +5,7 @@
     <string name="update_permission_intro">Android must allow Musikku to install apps before it can install the update.</string>
     <string name="update_permission_step_1">1. Tap “Open settings”.</string>
     <string name="update_permission_step_2">2. Turn on “Allow from this source” for Musikku.</string>
-    <string name="update_permission_step_3">3. Come back here. The installation continues by itself.</string>
+    <string name="update_permission_step_3">3. Come back to Musikku. If the update does not continue by itself, tap Download again: the file is kept.</string>
     <string name="update_open_settings">Open settings</string>
     <string name="update_installing">Installing update…</string>
     <string name="update_installing_android">If the installer closed, tap Install to open it again.</string>

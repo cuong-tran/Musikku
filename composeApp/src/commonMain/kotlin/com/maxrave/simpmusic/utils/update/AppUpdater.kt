@@ -80,7 +80,11 @@ object AppUpdater {
     @Volatile
     private var connection: HttpURLConnection? = null
 
-    /** Downloads [asset], then installs it. Ignored while a download or install is already under way. */
+    /**
+     * Downloads [asset], then installs it. Ignored while a download or install is already under way.
+     * A complete earlier download of the same file is installed without fetching it again: Android
+     * 11+ kills the app when the install permission is granted, which loses the state that held it.
+     */
     fun start(asset: ReleaseAsset) {
         locked {
             val current = _state.value
@@ -93,7 +97,7 @@ object AppUpdater {
                     previous?.cancelAndJoin()
                     val file =
                         try {
-                            download(asset)
+                            finishedDownload(asset) ?: download(asset)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
@@ -190,7 +194,8 @@ object AppUpdater {
         if (Files.isSymbolicLink(dir.toPath())) throw IOException("${dir.path} is a symbolic link.")
     }
 
-    private suspend fun download(asset: ReleaseAsset): File {
+    /** The checked file name [asset] is saved under. */
+    private fun fileNameOf(asset: ReleaseAsset): String {
         require(asset.downloadUrl.startsWith(MUSIKKU_RELEASE_DOWNLOAD_PREFIX)) {
             "The update is not hosted on Musikku's releases page."
         }
@@ -198,8 +203,25 @@ object AppUpdater {
         require(name.isNotBlank() && '/' !in name && '\\' !in name && ".." !in name) {
             "The update has an invalid file name."
         }
+        return name
+    }
+
+    /** [asset] as an earlier download left it, when that download finished; null otherwise. */
+    private fun finishedDownload(asset: ReleaseAsset): File? {
+        val name = fileNameOf(asset)
         val dir = updateDownloadDir()
         requireNotSymlink(dir)
+        val file = File(dir, name)
+        if (asset.size <= 0 || !file.isFile || file.length() != asset.size) return null
+        Logger.i(TAG, "Reusing the finished download ${file.name}")
+        return file
+    }
+
+    private suspend fun download(asset: ReleaseAsset): File {
+        val name = fileNameOf(asset)
+        val dir = updateDownloadDir()
+        requireNotSymlink(dir)
+        // Only cleared when actually downloading, so a finished download survives for finishedDownload.
         dir.deleteRecursively()
         if (!dir.mkdirs() && !dir.isDirectory) throw IOException("Cannot create ${dir.path}")
         val part = File(dir, "$name.part")
