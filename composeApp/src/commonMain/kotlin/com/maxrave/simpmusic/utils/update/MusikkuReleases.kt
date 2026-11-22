@@ -29,7 +29,8 @@ data class ReleaseAsset(
 
 internal const val MUSIKKU_RELEASES_PAGE = "https://github.com/cuong-tran/Musikku/releases"
 internal const val MUSIKKU_RELEASE_DOWNLOAD_PREFIX = "https://github.com/cuong-tran/Musikku/releases/download/"
-private const val MUSIKKU_RELEASES_API = "https://api.github.com/repos/cuong-tran/Musikku/releases?per_page=30"
+// Only one page is read, so ask for GitHub's maximum.
+private const val MUSIKKU_RELEASES_API = "https://api.github.com/repos/cuong-tran/Musikku/releases?per_page=100"
 private const val TAG = "Update"
 
 /** Musikku's own tags: "2.6.0" or "2.6.0.1". Upstream's "v2.6.0" and anything with a suffix are not ours. */
