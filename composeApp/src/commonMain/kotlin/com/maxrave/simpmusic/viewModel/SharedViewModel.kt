@@ -1246,11 +1246,16 @@ class SharedViewModel(
     private var _updateResponse = MutableStateFlow<AppRelease?>(null)
     val updateResponse: StateFlow<AppRelease?> = _updateResponse
 
+    private var updateCheckJob: Job? = null
+
     fun checkForUpdate() {
+        // One check at a time: startup and the Settings row can ask together, and the running one
+        // already owns the flag below.
+        if (updateCheckJob?.isActive == true) return
         // Raised before the coroutine starts, so Home's launch banner, which reads it right after
         // startup, can never miss a check that is already under way but not yet marked.
         _isCheckingUpdate.value = true
-        viewModelScope.launch {
+        updateCheckJob = viewModelScope.launch {
             dataStoreManager.putString(
                 "CheckForUpdateAt",
                 System.currentTimeMillis().toString(),
@@ -1290,7 +1295,8 @@ class SharedViewModel(
                     }
                 }
             }
-        }.invokeOnCompletion {
+        }
+        updateCheckJob?.invokeOnCompletion {
             // Also for a check that throws: the launch banner waits for this flag, so it must never
             // stay raised.
             _isCheckingUpdate.value = false
