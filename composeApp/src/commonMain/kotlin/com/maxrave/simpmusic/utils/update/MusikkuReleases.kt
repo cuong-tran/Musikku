@@ -1,6 +1,7 @@
 package com.maxrave.simpmusic.utils.update
 
 import com.maxrave.logger.Logger
+import com.maxrave.simpmusic.expect.updateAssetSuffix
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.compareVersions
 import kotlinx.coroutines.Dispatchers
@@ -98,13 +99,17 @@ internal fun pickLatestRelease(
     )
 }
 
-/** Asks GitHub for Musikku's releases. Success with null means this build is up to date. */
+/**
+ * Asks GitHub for Musikku's releases. Success with null means this build is up to date. [assetSuffix]
+ * runs on the IO thread: on Android it opens and walks the installed APK.
+ */
 suspend fun fetchLatestMusikkuRelease(
-    assetSuffix: String?,
+    assetSuffix: () -> String? = { updateAssetSuffix() },
     current: String = VersionManager.getVersionName(),
 ): Result<AppRelease?> =
     withContext(Dispatchers.IO) {
         runCatching {
+            val suffix = assetSuffix()
             val connection = URL(MUSIKKU_RELEASES_API).openConnection() as HttpURLConnection
             try {
                 connection.connectTimeout = 15_000
@@ -117,11 +122,11 @@ suspend fun fetchLatestMusikkuRelease(
                 }
                 val text = connection.inputStream.bufferedReader().use { it.readText() }
                 val releases = parseGithubReleases(text)
-                pickLatestRelease(releases, current, assetSuffix).also {
+                pickLatestRelease(releases, current, suffix).also {
                     Logger.i(
                         TAG,
                         "Musikku releases: ${releases.size} listed, current $current, " +
-                            "latest newer ${it?.tagName ?: "none"}, asset ${it?.asset?.name ?: "none"} (suffix $assetSuffix)",
+                            "latest newer ${it?.tagName ?: "none"}, asset ${it?.asset?.name ?: "none"} (suffix $suffix)",
                     )
                 }
             } finally {

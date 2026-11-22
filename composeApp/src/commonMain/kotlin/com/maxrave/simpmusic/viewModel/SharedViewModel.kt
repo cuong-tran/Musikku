@@ -74,7 +74,6 @@ import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.getDownloadFolderPath
 import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
 import com.maxrave.simpmusic.expect.postUpstreamUpdateNotification
-import com.maxrave.simpmusic.expect.updateAssetSuffix
 import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.utils.LyricsPromo
@@ -1256,7 +1255,7 @@ class SharedViewModel(
                 System.currentTimeMillis().toString(),
             )
             // Musikku's own releases are what this build updates to.
-            fetchLatestMusikkuRelease(updateAssetSuffix())
+            fetchLatestMusikkuRelease()
                 .onSuccess { release ->
                     if (release != null) {
                         _updateResponse.value = release
