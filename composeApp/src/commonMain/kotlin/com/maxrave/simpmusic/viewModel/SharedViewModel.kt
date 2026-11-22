@@ -1279,13 +1279,8 @@ class SharedViewModel(
                 }
             _isCheckingUpdate.value = false
             // Upstream SimpMusic is only reported, once per app start: this fork cannot install it.
-            val upstream =
-                when (dataStoreManager.updateChannel.first()) {
-                    DataStoreManager.GITHUB -> updateRepository.checkForGithubReleaseUpdate()
-                    DataStoreManager.FDROID -> updateRepository.checkForFdroidUpdate()
-                    else -> null
-                }
-            upstream?.collectLatest { response ->
+            // Always asked on GitHub; an update channel stored by an earlier build is not read.
+            updateRepository.checkForGithubReleaseUpdate().collectLatest { response ->
                 val data = response.data
                 when (response) {
                     is Resource.Success if (data != null) -> notifyUpstreamUpdateOnce(data.tagName)
@@ -1316,7 +1311,7 @@ class SharedViewModel(
                 postUpstreamUpdateNotification(
                     title = getString(Res.string.upstream_update_title),
                     message = getString(Res.string.upstream_update_message, tagName),
-                    // F-Droid's tags carry no "v"; upstream's GitHub tags always do.
+                    // Normalised to one leading "v", the form upstream's GitHub tags take.
                     url = "https://github.com/maxrave-dev/SimpMusic/releases/tag/v${tagName.removePrefix("v")}",
                 )
         } finally {
