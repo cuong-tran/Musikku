@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -238,9 +239,11 @@ private fun DialogButton(
     onClick: () -> Unit,
 ) {
     TextButton(onClick = onClick) {
+        // typo() styles carry their own colour, which would override the button's content colour.
         Text(
             text,
             style = typo().bodySmall,
+            color = LocalContentColor.current,
         )
     }
 }
