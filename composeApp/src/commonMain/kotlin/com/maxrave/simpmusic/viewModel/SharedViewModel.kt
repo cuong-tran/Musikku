@@ -1255,6 +1255,10 @@ class SharedViewModel(
                 "CheckForUpdateAt",
                 System.currentTimeMillis().toString(),
             )
+            // Desktop stages updates in its data folder, which nothing else empties, so old files go on
+            // every check, this release's own included. Android's sit in the cache and are kept for the
+            // install, which can need the app restarted first.
+            if (getPlatform() == Platform.Desktop) AppUpdater.clearDownloads()
             // Musikku's own releases are what this build updates to.
             fetchLatestMusikkuRelease()
                 .onSuccess { release ->
