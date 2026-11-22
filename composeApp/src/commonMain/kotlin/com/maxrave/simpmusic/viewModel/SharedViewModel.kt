@@ -30,7 +30,6 @@ import com.maxrave.domain.data.model.intent.GenericIntent
 import com.maxrave.domain.data.model.metadata.Lyrics
 import com.maxrave.domain.data.model.promo.Promo
 import com.maxrave.domain.data.model.streams.TimeLine
-import com.maxrave.domain.data.model.update.UpdateData
 import com.maxrave.domain.data.player.GenericCastState
 import com.maxrave.domain.data.player.LiveStreamRegistry
 import com.maxrave.domain.extension.decodeHtmlEntities
@@ -74,6 +73,7 @@ import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.getDownloadFolderPath
 import com.maxrave.simpmusic.expect.isOnUnmeteredNetwork
+import com.maxrave.simpmusic.expect.postUpstreamUpdateNotification
 import com.maxrave.simpmusic.expect.ui.toByteArray
 import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.utils.LyricsPromo
@@ -81,6 +81,10 @@ import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.decodeLyricsPromos
 import com.maxrave.simpmusic.utils.decodePromos
 import com.maxrave.simpmusic.utils.shownPromoIds
+import com.maxrave.simpmusic.utils.update.AppRelease
+import com.maxrave.simpmusic.utils.update.AppUpdater
+import com.maxrave.simpmusic.utils.update.fetchLatestMusikkuRelease
+import com.maxrave.simpmusic.utils.update.upstreamUpdateNotified
 import com.maxrave.simpmusic.utils.withShownPromo
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +129,8 @@ import simpmusic.composeapp.generated.resources.play_next
 import simpmusic.composeapp.generated.resources.removed_from_youtube_liked
 import simpmusic.composeapp.generated.resources.shared
 import simpmusic.composeapp.generated.resources.updated
+import simpmusic.composeapp.generated.resources.upstream_update_message
+import simpmusic.composeapp.generated.resources.upstream_update_title
 import simpmusic.composeapp.generated.resources.vote_submitted
 import java.io.FileOutputStream
 import kotlin.math.abs
@@ -1301,54 +1307,81 @@ class SharedViewModel(
             }
     }
 
-    private var _updateResponse = MutableStateFlow<UpdateData?>(null)
-    val updateResponse: StateFlow<UpdateData?> = _updateResponse
+    private var _updateResponse = MutableStateFlow<AppRelease?>(null)
+    val updateResponse: StateFlow<AppRelease?> = _updateResponse
+
+    private var updateCheckJob: Job? = null
 
     fun checkForUpdate() {
+        // One check at a time: startup and the Settings row can ask together, and the running one
+        // already owns the flag below.
+        if (updateCheckJob?.isActive == true) return
         // Raised before the coroutine starts, so Home's launch banner, which reads it right after
         // startup, can never miss a check that is already under way but not yet marked.
         _isCheckingUpdate.value = true
-        viewModelScope.launch {
-            val updateChannel = dataStoreManager.updateChannel.first()
+        updateCheckJob = viewModelScope.launch {
             dataStoreManager.putString(
                 "CheckForUpdateAt",
                 System.currentTimeMillis().toString(),
             )
-            if (updateChannel == DataStoreManager.GITHUB) {
-                updateRepository.checkForGithubReleaseUpdate().collectLatest { response ->
-                    val data = response.data
-                    when (response) {
-                        is Resource.Success if (data != null) -> {
-                            _updateResponse.value = data
-                            showedUpdateDialog = true
-                        }
-
-                        else -> {
-                            log("Check for update error: ${response.message}", LogLevel.WARN)
-                        }
+            // Desktop stages updates in its data folder, which nothing else empties, so old files go on
+            // every check, this release's own included. Android's sit in the cache and are kept for the
+            // install, which can need the app restarted first.
+            if (getPlatform() == Platform.Desktop) AppUpdater.clearDownloads()
+            // Musikku's own releases are what this build updates to.
+            fetchLatestMusikkuRelease()
+                .onSuccess { release ->
+                    if (release != null) {
+                        _updateResponse.value = release
+                        showedUpdateDialog = true
+                    } else {
+                        // Up to date, so whatever an earlier update staged is stale.
+                        AppUpdater.clearDownloads()
                     }
-                    _isCheckingUpdate.value = false
+                }.onFailure { e ->
+                    log("Check for update error: ${e.message}", LogLevel.WARN)
                 }
-            } else if (updateChannel == DataStoreManager.FDROID) {
-                updateRepository.checkForFdroidUpdate().collectLatest { response ->
-                    val data = response.data
-                    when (response) {
-                        is Resource.Success if (data != null) -> {
-                            _updateResponse.value = data
-                            showedUpdateDialog = true
-                        }
+            _isCheckingUpdate.value = false
+            // Upstream SimpMusic is only reported, once per app start: this fork cannot install it.
+            // Always asked on GitHub; an update channel stored by an earlier build is not read.
+            updateRepository.checkForGithubReleaseUpdate().collectLatest { response ->
+                val data = response.data
+                when (response) {
+                    is Resource.Success if (data != null) -> notifyUpstreamUpdateOnce(data.tagName)
 
-                        else -> {
-                            log("Check for update error: ${response.message}", LogLevel.WARN)
-                        }
+                    else -> {
+                        log("Check for upstream update error: ${response.message}", LogLevel.WARN)
                     }
-                    _isCheckingUpdate.value = false
                 }
             }
-        }.invokeOnCompletion {
-            // Also for a channel neither branch handles, and for a check that throws: the launch
-            // banner waits for this flag, so it must never stay raised.
+        }
+        updateCheckJob?.invokeOnCompletion {
+            // Also for a check that throws: the launch banner waits for this flag, so it must never
+            // stay raised.
             _isCheckingUpdate.value = false
+        }
+    }
+
+    private suspend fun notifyUpstreamUpdateOnce(tagName: String) {
+        if (!VersionManager.isBehind(tagName)) return
+        // Once per app start, not once per release: the flag lives in the process, so a manual check
+        // or a rebuilt view model does not post it again, and the next start does. Claimed before
+        // posting, so two checks running at once cannot both post.
+        if (!upstreamUpdateNotified.compareAndSet(false, true)) return
+        Logger.i("Update", "Upstream SimpMusic $tagName is newer, notifying once for this start")
+        var posted = false
+        try {
+            posted =
+                postUpstreamUpdateNotification(
+                    title = getString(Res.string.upstream_update_title),
+                    message = getString(Res.string.upstream_update_message, tagName),
+                    // Normalised to one leading "v", the form upstream's GitHub tags take.
+                    url = "https://github.com/maxrave-dev/SimpMusic/releases/tag/v${tagName.removePrefix("v")}",
+                )
+        } finally {
+            // Released when nothing was shown (also when collectLatest cancels this mid-way), so a
+            // check made with notifications off can still post later in this run.
+            if (!posted) upstreamUpdateNotified.set(false)
         }
     }
 
