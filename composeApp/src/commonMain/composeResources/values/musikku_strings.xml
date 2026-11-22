@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Musikku-only strings. Kept apart from strings.xml, which follows upstream and Crowdin. -->
+<resources>
+    <string name="update_downloading">Downloading… %1$s</string>
+    <string name="update_permission_intro">Android must allow Musikku to install apps before it can install the update.</string>
+    <string name="update_permission_step_1">1. Tap “Open settings”.</string>
+    <string name="update_permission_step_2">2. Turn on “Allow from this source” for Musikku.</string>
+    <string name="update_permission_step_3">3. Come back here. The installation continues by itself.</string>
+    <string name="update_open_settings">Open settings</string>
+    <string name="update_installing">Installing update…</string>
+    <string name="update_installing_android">If the installer closed, tap Install to open it again.</string>
+    <string name="update_restart_note">Musikku will close and start again with the new version.</string>
+    <string name="update_install">Install</string>
+    <string name="update_close">Close</string>
+    <string name="update_failed">The update failed.</string>
+    <string name="update_open_releases">Open releases page</string>
+    <string name="upstream_update_title">SimpMusic update available</string>
+    <string name="upstream_update_message">Upstream SimpMusic released %1$s. Musikku has not been synced to it yet.</string>
+</resources>

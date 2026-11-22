@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** A Musikku release this build can update to. [asset] is the file for this build, or null when none fits. */
 data class AppRelease(
@@ -115,3 +116,6 @@ suspend fun fetchLatestMusikkuRelease(
     }
 
 internal const val UPDATE_USER_AGENT = "Musikku"
+
+/** Raised once this process has told the user about a newer upstream SimpMusic release: one notification per app start. */
+internal val upstreamUpdateNotified = AtomicBoolean(false)
