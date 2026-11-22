@@ -94,6 +94,20 @@ class MusikkuReleasesTest {
     }
 
     @Test
+    fun `nothing when the asset carries this build's version under a newer tag`() {
+        val releases = listOf(release("2.6.0.1", assets = listOf("musikku-2.6.0-full-arm64-v8a.apk")))
+        assertNull(pickLatestRelease(releases, "2.6.0", "-full-arm64-v8a.apk"))
+    }
+
+    @Test
+    fun `offered when the asset carries the newer version`() {
+        val releases = listOf(release("2.6.0.1", assets = listOf("musikku-2.6.0.1-full-arm64-v8a.apk")))
+        val picked = pickLatestRelease(releases, "2.6.0", "-full-arm64-v8a.apk")
+        assertEquals("2.6.0.1", picked?.tagName)
+        assertEquals("musikku-2.6.0.1-full-arm64-v8a.apk", picked?.asset?.name)
+    }
+
+    @Test
     fun `parses GitHub's release list`() {
         val json =
             """

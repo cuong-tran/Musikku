@@ -34,6 +34,8 @@ private const val TAG = "Update"
 /** Musikku's own tags: "2.6.0" or "2.6.0.1". Upstream's "v2.6.0" and anything with a suffix are not ours. */
 private val RELEASE_TAG = Regex("""^\d+\.\d+\.\d+(\.\d+)?$""")
 
+private const val ASSET_PREFIX = "musikku-"
+
 private val releasesJson = Json { ignoreUnknownKeys = true }
 
 @Serializable
@@ -59,6 +61,10 @@ internal fun parseGithubReleases(json: String): List<GithubRelease> = releasesJs
  * The newest published Musikku release, when it is newer than [current]. Drafts, prereleases and tags
  * that are not plain dotted numbers are skipped; versions compare number by number, so the order
  * GitHub lists them in does not matter. [assetSuffix] picks this build's file from the release.
+ *
+ * The file is named after the versionName it was built with, which can trail the tag (tag 2.6.0.1
+ * built from 2.6.0). When that version is not newer than [current], installing it would leave this
+ * build where it is and the same release would be offered on every launch, so nothing is offered.
  */
 internal fun pickLatestRelease(
     releases: List<GithubRelease>,
@@ -75,6 +81,15 @@ internal fun pickLatestRelease(
         assetSuffix?.let { suffix ->
             latest.assets.firstOrNull { it.name.endsWith(suffix) && it.browserDownloadUrl.isNotBlank() }
         }
+    if (asset != null && assetSuffix != null) {
+        val assetVersion = asset.name.removePrefix(ASSET_PREFIX).removeSuffix(assetSuffix)
+        if (asset.name.startsWith(ASSET_PREFIX) &&
+            RELEASE_TAG.matches(assetVersion) &&
+            compareVersions(current, assetVersion) >= 0
+        ) {
+            return null
+        }
+    }
     return AppRelease(
         tagName = latest.tagName,
         releaseTime = latest.publishedAt,
