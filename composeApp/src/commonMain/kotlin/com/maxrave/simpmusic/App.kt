@@ -101,6 +101,8 @@ import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.utils.VersionManager
 import com.maxrave.simpmusic.utils.isAppLinkAvailable
 import com.maxrave.simpmusic.utils.libraryTabOf
+import com.maxrave.simpmusic.utils.update.AppUpdateState
+import com.maxrave.simpmusic.utils.update.AppUpdater
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -136,6 +138,9 @@ fun App(
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
     val nowPlayingData by viewModel.nowPlayingState.collectAsStateWithLifecycle()
     val updateData by viewModel.updateResponse.collectAsStateWithLifecycle()
+    // Held by the updater, which outlives the view model when the activity is recreated mid-update.
+    val activeUpdateRelease by AppUpdater.release.collectAsStateWithLifecycle()
+    val updateState by AppUpdater.state.collectAsStateWithLifecycle()
     val intent by viewModel.intent.collectAsStateWithLifecycle()
     val showNotificationPermissionDialog by viewModel.showNotificationPermissionDialog.collectAsStateWithLifecycle()
 
@@ -422,6 +427,10 @@ fun App(
                 }
             }
         }
+    }
+
+    LaunchedEffect(updateState, activeUpdateRelease) {
+        if (updateState !is AppUpdateState.Idle && activeUpdateRelease != null) shouldShowUpdateDialog = true
     }
 
     LaunchedEffect(updateData) {
@@ -885,7 +894,7 @@ fun App(
                 }
 
                 if (shouldShowUpdateDialog) {
-                    val response = updateData ?: return@Scaffold
+                    val response = updateData ?: activeUpdateRelease ?: return@Scaffold
                     UpdateDialog(
                         release = response,
                         onDismiss = {

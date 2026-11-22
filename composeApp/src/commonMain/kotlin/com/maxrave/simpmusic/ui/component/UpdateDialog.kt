@@ -109,12 +109,11 @@ fun UpdateDialog(
             when (state) {
                 AppUpdateState.Idle -> {
                     DialogButton(stringResource(Res.string.download)) {
-                        val asset = release.asset
-                        if (asset == null) {
+                        if (release.asset == null) {
                             onDismiss()
                             openUrl(MUSIKKU_RELEASES_PAGE)
                         } else {
-                            AppUpdater.start(asset)
+                            AppUpdater.start(release)
                         }
                     }
                 }
@@ -134,8 +133,8 @@ fun UpdateDialog(
                 is AppUpdateState.Failed -> {
                     Row {
                         DialogButton(stringResource(Res.string.update_open_releases)) { openUrl(MUSIKKU_RELEASES_PAGE) }
-                        release.asset?.let { asset ->
-                            DialogButton(stringResource(Res.string.retry)) { AppUpdater.start(asset) }
+                        if (release.asset != null) {
+                            DialogButton(stringResource(Res.string.retry)) { AppUpdater.start(release) }
                         }
                     }
                 }

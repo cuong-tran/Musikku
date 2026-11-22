@@ -62,6 +62,15 @@ object AppUpdater {
     private val _state = MutableStateFlow<AppUpdateState>(AppUpdateState.Idle)
     val state: StateFlow<AppUpdateState> = _state.asStateFlow()
 
+    private val _release = MutableStateFlow<AppRelease?>(null)
+
+    /**
+     * The release being updated to, held while [state] is not Idle. The activity, and the view model
+     * holding the offer, are rebuilt on rotation or a theme change while this keeps going, so the
+     * dialog reads the release from here to come back.
+     */
+    val release: StateFlow<AppRelease?> = _release.asStateFlow()
+
     private val lock = ReentrantLock()
 
     private inline fun <T> locked(block: () -> T): T {
@@ -81,16 +90,18 @@ object AppUpdater {
     private var connection: HttpURLConnection? = null
 
     /**
-     * Downloads [asset], then installs it. Ignored while a download or install is already under way.
+     * Downloads [release]'s asset, then installs it. Ignored while a download or install is already under way.
      * A complete earlier download of the same file is installed without fetching it again: Android
      * 11+ kills the app when the install permission is granted, which loses the state that held it.
      */
-    fun start(asset: ReleaseAsset) {
+    fun start(release: AppRelease) {
+        val asset = release.asset ?: return
         locked {
             val current = _state.value
             if (current is AppUpdateState.Downloading || current is AppUpdateState.Installing) return
             // A cancelled download may still be unwinding; it must be gone before this one clears the folder.
             val previous = downloadJob
+            _release.value = release
             _state.value = AppUpdateState.Downloading(0, asset.size)
             downloadJob =
                 scope.launch {
@@ -142,6 +153,7 @@ object AppUpdater {
                     downloadJob?.cancel()
                 }
                 _state.value = AppUpdateState.Idle
+                _release.value = null
                 if (running) connection else null
             }
         // disconnect() can block behind a stalled read, so it runs off the caller's thread and lock.
