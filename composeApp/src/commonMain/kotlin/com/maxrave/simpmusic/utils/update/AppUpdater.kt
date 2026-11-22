@@ -134,14 +134,18 @@ object AppUpdater {
 
     /** Stops a running download and deletes what it wrote. */
     fun cancel() {
-        locked {
-            if (_state.value is AppUpdateState.Downloading) {
-                Logger.i(TAG, "Download cancelled")
-                downloadJob?.cancel()
-                connection?.disconnect()
+        val open =
+            locked {
+                val running = _state.value is AppUpdateState.Downloading
+                if (running) {
+                    Logger.i(TAG, "Download cancelled")
+                    downloadJob?.cancel()
+                }
+                _state.value = AppUpdateState.Idle
+                if (running) connection else null
             }
-            _state.value = AppUpdateState.Idle
-        }
+        // disconnect() can block behind a stalled read, so it runs off the caller's thread and lock.
+        if (open != null) scope.launch { open.disconnect() }
     }
 
     fun reset() = cancel()
