@@ -38,13 +38,13 @@ Update this after every merge, because these commits are the `OLD` side of the s
 
 ## 🧾 What the fork changes
 
-Eight groups. Each says what changed and why, what to look for in new upstream code (apply the same change there too), and which fork commits make it up. Commits marked `core:` are in the submodule; a superproject commit that "bumps core" brings them in.
+Nine groups. Each says what changed and why, what to look for in new upstream code (apply the same change there too), and which fork commits make it up. Commits marked `core:` are in the submodule; a superproject commit that "bumps core" brings them in.
 
 ### 1. Android identity and the official-build check
 
 - Application id `app.musikku` (debug: `app.musikku.dev`), so the app installs next to SimpMusic. Launcher shortcuts target it; the vivo build's own shortcuts keep `com.spotify.music`.
 - `Config.OFFICIAL_PACKAGE_NAMES` lists Musikku's two ids and the vivo build's `com.spotify.music`, and no longer upstream's `com.maxrave.simpmusic` ids, which a renamed Musikku APK could pass as. The signing-key half of `SharedViewModel.checkOfficialBuild()` is commented out, because it compares against upstream's F-Droid key and Musikku is signed with the fork's own key. The package-name half stays.
-- The update dialog's download button opens `github.com/cuong-tran/Musikku/releases`.
+- The update dialog offers Musikku's own releases (group 9). A build that cannot update itself still opens `github.com/cuong-tran/Musikku/releases` from its Download button.
 - **Watch for**: a new `targetPackage="com.maxrave.simpmusic"`, any new signature or package check, a new `simpmusic.org/download` link.
 - **Commits**: `1afd490`; core: `f820163`. The vivo debug shortcuts were merged upstream as #2689 and have left the fork's diff.
 
@@ -112,10 +112,21 @@ Eight groups. Each says what changed and why, what to look for in new upstream c
 - **Watch for**: a new dialog on Home's `openAppTime` milestones, a new worker or channel that pushes upstream's news, a new link to the developer's X account or blog in Settings, and new uses of `blogNotificationEnabled`.
 - **Commits**: `b108c97`.
 
+### 9. In-app auto update
+
+- **Source**: the update check asks Musikku's own GitHub releases (`api.github.com/repos/cuong-tran/Musikku/releases`), not upstream's. Only published releases whose tag is plain dotted numbers count (`x.x.x` or `x.x.x.x`, group 6); drafts, prereleases, upstream-style `vx.x.x` tags and suffixed tags (`2.6.0-beta`) are skipped. The highest version wins by number, whatever order GitHub lists them in, and it is offered only when it is strictly newer than this build (`pickLatestRelease`, tested in `MusikkuReleasesTest`). Code: `utils/update/MusikkuReleases.kt`.
+- **Asset per platform**, matched by suffix (the file's version is the build's versionName, which normally equals the tag): Android `-<full|foss>-<abi>.apk`, where the flavour is the new `BuildKonfig.isFullBuild` and the ABI is read from the installed APK's own `lib/<abi>/` folders (several or none → `universal`); the vivo build (`com.spotify.music`) `-full-vivo-arm64-v8a.apk`; Linux `-linux-x86_64.AppImage`, only when started from an AppImage (`$APPIMAGE`); macOS `-mac-<aarch64|amd64>.zip`, only from inside an `.app` bundle; Windows `-windows-x64-installer.zip`. A debug or `.dev` Android build and a desktop dev run (`simpmusic.dev`) get no asset, and neither does a release with no matching file: Download then opens the releases page as before.
+- **Download and install** (`utils/update/AppUpdater.kt`, `expect/UpdateInstaller.kt` and its two actuals, `ui/component/UpdateDialog.kt`): the file is downloaded only from `github.com/cuong-tran/Musikku/releases/download/`, into the app cache (`cacheDir/updates`) on Android, the temp folder on Linux and macOS, and `~/.musikku/update` on Windows (MSIX virtualizes AppData, temp included, and `install.bat` elevates itself out of the package). Progress, cancel, the permission guide, installing and failure all show on the update dialog, which moved out of `App.kt` unchanged in look. Android hands the APK to the system installer through the existing FileProvider; Linux replaces the running AppImage in place and restarts it; macOS unpacks with `ditto` and a script swaps the bundle once the app has quit, then reopens it; Windows unpacks the installer zip and starts `install.bat`, which closes and relaunches the app itself.
+- **Android permission**: `REQUEST_INSTALL_PACKAGES` is declared in androidApp's manifest (the vivo build shares it). Until the user allows Musikku to install apps, the dialog shows a three-step guide with Open settings, and continues by itself when the app resumes.
+- **Upstream releases only notify**: the upstream check (`updateRepository`, by `updateChannel`) still runs after Musikku's, but a newer upstream release now raises one notification per tag ("SimpMusic update available … Musikku has not been synced to it yet"), remembered in the DataStore string `upstream_update_notified_tag`. Android posts it on channel `upstream_update_channel` and opens the upstream release page; Desktop posts it through `DesktopNotificationManager`, with no click action.
+- **Strings** are English only, in `composeResources/values/musikku_strings.xml`, outside the Crowdin-managed `strings.xml`.
+- **Watch for**: changes upstream makes to `SharedViewModel.checkForUpdate()`, the update dialog or `VersionManager`; a change to the release asset names or tag format in the workflows (group 6), which the suffixes and the tag filter must follow; a new manifest that does not share androidApp's.
+- **Commits**: `7904270`, `72c97ff`, `80d9ef4`, and the commit that adds this group.
+
 ### Kept as upstream
 
 - **Identifiers**: Kotlin packages, class names, Android `namespace`, intent actions, Gradle modules, DataStore keys, the database name and the notification channel id.
-- **Not decided yet**: the update check (asks `maxrave-dev/SimpMusic` for its latest release), the Discord "Visit SimpMusic" button and the Credits screen links still point at upstream.
+- **Not decided yet**: the Discord "Visit SimpMusic" button and the Credits screen links still point at upstream.
 
 ## 🔀 Merging upstream
 
@@ -161,6 +172,7 @@ git commit                                         # once every conflict is reso
 | `SettingScreen` custom-colour presets | Take upstream's list, and keep `"FFD13433" to "Musikku"` first and the grid three across (group 3). |
 | `PairedSyncWire.PORT` (core), `library_sync_port_in_use` | Keep 48518 in both (group 4). |
 | `SharedViewModel.checkOfficialBuild` | Take upstream's logic, then comment out (or remove) the signing-key half again. Keep the package-name half. |
+| `SharedViewModel.checkForUpdate`, the update dialog in `App.kt` | Take upstream's other changes, and keep the Musikku release check first and the upstream check notifying only (group 9). A change upstream makes to its inline dialog goes into `UpdateDialog.kt`. |
 | `CommonRepositoryImpl` promos write | Take upstream's surrounding changes, and keep writing `"[]"`. |
 | `HomeScreen` open-count milestones, the review/blog/footguns dialogs, `RssFeedNotifyWork`, the About rows in `SettingScreen` | Take upstream's other changes around them, and keep the prompts, the worker and the rows removed (group 8). Imports the removal dropped can be needed again by new upstream code (`lifecycleScope` and `launch` in `MainActivity` were, for library sync): check each one. |
 | Workflows, `build_and_sign_apk.sh` | Take upstream's new steps, then re-apply group 6: lowercase `musikku-…` file names, `BASE_64_SIGNING_KEY`, one artifact per file. |
