@@ -92,7 +92,7 @@ actual suspend fun installUpdate(file: File) {
     }
 }
 
-/** Replaces the running AppImage's file, then starts it again once this process has let go of its lock. */
+/** Replaces the running AppImage's file, then starts it again once this process has exited. */
 private fun installAppImage(download: File) {
     val target = runningAppImage() ?: throw IllegalStateException("Musikku is not running from an AppImage.")
     val dir = target.absoluteFile.parentFile
@@ -112,8 +112,16 @@ private fun installAppImage(download: File) {
         throw if (e is IllegalStateException) e else IllegalStateException("Could not replace ${target.path}: ${e.message}", e)
     }
     Logger.i(TAG, "AppImage replaced, restarting")
+    // Waits for this process to exit: until then it holds the single-instance lock, and the new
+    // AppImage would quit as a second instance.
     val builder =
-        ProcessBuilder("sh", "-c", "sleep 2; exec \"\$0\"", target.absolutePath)
+        ProcessBuilder(
+            "sh",
+            "-c",
+            "while kill -0 \"\$1\" 2>/dev/null; do sleep 0.5; done; exec \"\$0\"",
+            target.absolutePath,
+            ProcessHandle.current().pid().toString(),
+        )
             .redirectInput(ProcessBuilder.Redirect.DISCARD)
             .redirectOutput(ProcessBuilder.Redirect.DISCARD)
             .redirectError(ProcessBuilder.Redirect.DISCARD)
