@@ -121,7 +121,7 @@ Nine groups. Each says what changed and why, what to look for in new upstream co
 - **Upstream releases only notify**: the upstream check (`updateRepository`, by `updateChannel`) still runs after Musikku's, but a newer upstream release now raises one notification per tag ("SimpMusic update available … Musikku has not been synced to it yet"), remembered in the DataStore string `upstream_update_notified_tag`. Android posts it on channel `upstream_update_channel` and opens the upstream release page; Desktop posts it through `DesktopNotificationManager`, with no click action.
 - **Strings** are English only, in `composeResources/values/musikku_strings.xml`, outside the Crowdin-managed `strings.xml`.
 - **Watch for**: changes upstream makes to `SharedViewModel.checkForUpdate()`, the update dialog or `VersionManager`; a change to the release asset names or tag format in the workflows (group 6), which the suffixes and the tag filter must follow; a new manifest that does not share androidApp's.
-- **Commits**: `7904270`, `72c97ff`, `80d9ef4`, and the commit that adds this group.
+- **Commits**: `7904270`, `72c97ff`, `80d9ef4`, `237f7ec` (this group), and the commit that names them.
 
 ### Kept as upstream
 
