@@ -118,6 +118,10 @@ actual fun postUpstreamUpdateNotification(
     manager.createNotificationChannel(
         NotificationChannel(UPSTREAM_UPDATE_CHANNEL, "Upstream updates", NotificationManager.IMPORTANCE_DEFAULT),
     )
+    if (manager.getNotificationChannel(UPSTREAM_UPDATE_CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) {
+        Logger.i(TAG, "Upstream update notification skipped: its channel is turned off")
+        return false
+    }
     val pendingIntent =
         PendingIntent.getActivity(
             context,
