@@ -5,7 +5,7 @@ import java.io.File
 /** Suffix of the release asset this build updates itself with, or null when this build cannot self-update. */
 expect fun updateAssetSuffix(): String?
 
-/** Folder the update is downloaded into (a temp/cache location). */
+/** Folder the update is downloaded into: private to this user (app cache on Android, the data folder on Desktop). */
 expect fun updateDownloadDir(): File
 
 /** True when the OS needs the user to grant this app permission to install packages first. */

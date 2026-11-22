@@ -67,15 +67,12 @@ actual fun updateAssetSuffix(): String? {
     }
 }
 
-actual fun updateDownloadDir(): File =
-    if (os == DesktopOs.WINDOWS) {
-        // The MSIX package virtualizes writes under AppData, temp included, and install.bat elevates
-        // itself into a process outside the package that might not see them. The data folder sits
-        // in the user's home, which is not virtualized.
-        File(desktopDataPath("update"))
-    } else {
-        File(System.getProperty("java.io.tmpdir"), "musikku-update")
-    }
+// The user's own data folder, on every OS. The temp folder is shared by every user on Linux and
+// macOS (/tmp), so a fixed name there could be created ahead of us, or swapped for a link, by
+// someone else. On Windows the MSIX package also virtualizes writes under AppData, temp included,
+// and install.bat elevates itself into a process outside the package that might not see them; the
+// data folder sits in the user's home, which is not virtualized.
+actual fun updateDownloadDir(): File = File(desktopDataPath("update"))
 
 actual fun needsInstallPermission(): Boolean = false
 

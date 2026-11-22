@@ -21,6 +21,7 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.Files
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.Volatile
 
@@ -184,6 +185,11 @@ object AppUpdater {
         }
     }
 
+    /** The folder is emptied before each download; a link there could point that at anything. */
+    private fun requireNotSymlink(dir: File) {
+        if (Files.isSymbolicLink(dir.toPath())) throw IOException("${dir.path} is a symbolic link.")
+    }
+
     private suspend fun download(asset: ReleaseAsset): File {
         require(asset.downloadUrl.startsWith(MUSIKKU_RELEASE_DOWNLOAD_PREFIX)) {
             "The update is not hosted on Musikku's releases page."
@@ -193,6 +199,7 @@ object AppUpdater {
             "The update has an invalid file name."
         }
         val dir = updateDownloadDir()
+        requireNotSymlink(dir)
         dir.deleteRecursively()
         if (!dir.mkdirs() && !dir.isDirectory) throw IOException("Cannot create ${dir.path}")
         val part = File(dir, "$name.part")
