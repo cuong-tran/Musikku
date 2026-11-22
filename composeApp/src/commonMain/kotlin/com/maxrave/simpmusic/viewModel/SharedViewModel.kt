@@ -82,6 +82,7 @@ import com.maxrave.simpmusic.utils.decodeLyricsPromos
 import com.maxrave.simpmusic.utils.decodePromos
 import com.maxrave.simpmusic.utils.shownPromoIds
 import com.maxrave.simpmusic.utils.update.AppRelease
+import com.maxrave.simpmusic.utils.update.AppUpdater
 import com.maxrave.simpmusic.utils.update.fetchLatestMusikkuRelease
 import com.maxrave.simpmusic.utils.update.upstreamUpdateNotified
 import com.maxrave.simpmusic.utils.withShownPromo
@@ -1260,6 +1261,9 @@ class SharedViewModel(
                     if (release != null) {
                         _updateResponse.value = release
                         showedUpdateDialog = true
+                    } else {
+                        // Up to date, so whatever an earlier update staged is stale.
+                        AppUpdater.clearDownloads()
                     }
                 }.onFailure { e ->
                     log("Check for update error: ${e.message}", LogLevel.WARN)

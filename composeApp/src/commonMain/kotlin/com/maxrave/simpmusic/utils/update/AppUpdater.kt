@@ -162,6 +162,27 @@ object AppUpdater {
 
     fun reset() = cancel()
 
+    /** Deletes what earlier updates left behind. Only while nothing is under way: this build is current. */
+    fun clearDownloads() {
+        scope.launch {
+            locked {
+                if (_state.value !is AppUpdateState.Idle) return@launch
+                val dir = updateDownloadDir()
+                if (!dir.exists()) return@launch
+                if (Files.isSymbolicLink(dir.toPath())) {
+                    Logger.w(TAG, "Not clearing ${dir.path}: it is a symbolic link")
+                    return@launch
+                }
+                // Held under the lock so a download starting now cannot have its folder deleted under it.
+                if (dir.deleteRecursively()) {
+                    Logger.i(TAG, "Cleared old update downloads")
+                } else {
+                    Logger.w(TAG, "Could not clear ${dir.path}")
+                }
+            }
+        }
+    }
+
     /**
      * Sets [state] unless this download was cancelled. Checked under the same lock [cancel] takes, so a
      * progress update racing a cancel cannot put the dialog back into Downloading after it went Idle.
