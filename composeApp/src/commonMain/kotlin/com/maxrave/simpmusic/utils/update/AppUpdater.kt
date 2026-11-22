@@ -267,6 +267,9 @@ object AppUpdater {
         val connection = URL(asset.downloadUrl).openConnection() as HttpURLConnection
         this.connection = connection
         try {
+            // A cancel landing before the assignment above found no connection to close, and would
+            // leave this job blocked in responseCode.
+            currentCoroutineContext().ensureActive()
             connection.instanceFollowRedirects = true
             connection.connectTimeout = 15_000
             connection.readTimeout = 30_000
