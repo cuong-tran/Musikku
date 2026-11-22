@@ -237,11 +237,12 @@ actual fun postUpstreamUpdateNotification(
     title: String,
     message: String,
     url: String,
-) {
+): Boolean =
     // The native notification carries no click action, so it names the release and nothing more.
     try {
         getKoin().get<DesktopNotificationManager>().post(UPSTREAM_UPDATE_NOTIFICATION_ID, title, message)
+        true
     } catch (e: Exception) {
         Logger.w(TAG, "Upstream update notification failed: ${e.message}")
+        false
     }
-}

@@ -22,10 +22,11 @@ expect suspend fun installUpdate(file: File)
 
 /**
  * Posts a notification saying upstream SimpMusic has a release this fork has not caught up with.
- * It is information only: nothing in it installs. [url] is that release's page.
+ * It is information only: nothing in it installs. [url] is that release's page. Returns true only
+ * when the notification was actually posted.
  */
 expect fun postUpstreamUpdateNotification(
     title: String,
     message: String,
     url: String,
-)
+): Boolean

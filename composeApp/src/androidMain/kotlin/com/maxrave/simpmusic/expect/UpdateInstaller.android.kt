@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
@@ -101,15 +102,18 @@ actual fun postUpstreamUpdateNotification(
     title: String,
     message: String,
     url: String,
-) {
+): Boolean {
     val context = appContext()
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+    if ((
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) ||
+        !NotificationManagerCompat.from(context).areNotificationsEnabled()
     ) {
         Logger.i(TAG, "Upstream update notification skipped: notifications are not allowed")
-        return
+        return false
     }
-    val manager = context.getSystemService(NotificationManager::class.java) ?: return
+    val manager = context.getSystemService(NotificationManager::class.java) ?: return false
     // Creating a channel that already exists only updates its name, so this is safe on every call.
     manager.createNotificationChannel(
         NotificationChannel(UPSTREAM_UPDATE_CHANNEL, "Upstream updates", NotificationManager.IMPORTANCE_DEFAULT),
@@ -131,9 +135,11 @@ actual fun postUpstreamUpdateNotification(
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
-    try {
+    return try {
         manager.notify(UPSTREAM_UPDATE_NOTIFICATION_ID, notification)
-    } catch (e: SecurityException) {
+        true
+    } catch (e: Exception) {
         Logger.w(TAG, "Upstream update notification refused: ${e.message}")
+        false
     }
 }

@@ -1297,14 +1297,17 @@ class SharedViewModel(
         if (!VersionManager.isBehind(tagName)) return
         // Once per app start, not once per release: the flag lives in the process, so a manual check
         // or a rebuilt view model does not post it again, and the next start does.
-        if (!upstreamUpdateNotified.compareAndSet(false, true)) return
+        if (upstreamUpdateNotified.get()) return
         Logger.i("Update", "Upstream SimpMusic $tagName is newer, notifying once for this start")
-        postUpstreamUpdateNotification(
-            title = getString(Res.string.upstream_update_title),
-            message = getString(Res.string.upstream_update_message, tagName),
-            // F-Droid's tags carry no "v"; upstream's GitHub tags always do.
-            url = "https://github.com/maxrave-dev/SimpMusic/releases/tag/v${tagName.removePrefix("v")}",
-        )
+        val posted =
+            postUpstreamUpdateNotification(
+                title = getString(Res.string.upstream_update_title),
+                message = getString(Res.string.upstream_update_message, tagName),
+                // F-Droid's tags carry no "v"; upstream's GitHub tags always do.
+                url = "https://github.com/maxrave-dev/SimpMusic/releases/tag/v${tagName.removePrefix("v")}",
+            )
+        // Raised only once shown, so a check made with notifications off can still post later in this run.
+        if (posted) upstreamUpdateNotified.set(true)
     }
 
     /**
