@@ -205,8 +205,9 @@ private fun runWindowsInstaller(zip: File) {
         root.walkTopDown().firstOrNull { it.isFile && it.name.equals("install.bat", ignoreCase = true) }
             ?: throw IllegalStateException("The update does not contain install.bat.")
     Logger.i(TAG, "Starting the Windows installer")
+    // Started by name from its own folder: a full path with spaces through `cmd /c start` depends on quoting.
     startOrFail(
-        ProcessBuilder("cmd", "/c", "start", "\"\"", bat.absolutePath).directory(bat.parentFile),
+        ProcessBuilder("cmd", "/c", "start", "\"\"", bat.name).directory(bat.parentFile),
         "start the installer",
     )
 }
