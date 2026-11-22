@@ -429,8 +429,14 @@ fun App(
         }
     }
 
-    LaunchedEffect(updateState, activeUpdateRelease) {
-        if (updateState !is AppUpdateState.Idle && activeUpdateRelease != null) shouldShowUpdateDialog = true
+    // A running update always has its dialog; with no release left to show, the saved flag is dropped
+    // so it does not hold back the launch banner.
+    LaunchedEffect(updateState, activeUpdateRelease, updateData) {
+        if (updateState !is AppUpdateState.Idle && activeUpdateRelease != null) {
+            shouldShowUpdateDialog = true
+        } else if (updateData == null && activeUpdateRelease == null) {
+            shouldShowUpdateDialog = false
+        }
     }
 
     LaunchedEffect(updateData) {
