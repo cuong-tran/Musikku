@@ -270,6 +270,15 @@ Run `/code-review` once per repo, after its rebase and adaptations, on the fork'
 - **A fork commit that removes imports** (group 8's `MainActivity`) applies cleanly over upstream
   code that starts using them again, and only the compiler would notice. Check every import a fork
   commit removes against the file as it now stands.
+- **The survey's `FILES=$(...)` then `git diff -- $FILES` does not split in zsh**, the shell on the
+  owner's Mac: the whole list arrives as one path, `--stat` prints nothing, and it looks as if no fork
+  file conflicts. Run those lines under `bash -c`.
+- **In the owner's checkout the core submodule's fork remote is named `core`, not `origin`**
+  (`core/musikku`, `git -C core push core musikku`). Check `git -C core remote -v` before
+  copying the commands here.
+- **A guide commit list can name ids that were never on `musikku`**: a PR merged with squash leaves
+  its sub-commits only on the PR branch (2026-11-28: groups 6 and 9 named 33 of them). Point such a
+  list at the squashed commit, and check each id is an ancestor of the tip, not just that it exists.
 - **The proxy refuses deleting remote branches (HTTP 403).** Do not retry; tell the owner which
   branches to delete on GitHub.
 - `git checkout <rev> -- <dir>` does not remove files that are staged but absent from `<rev>`.
